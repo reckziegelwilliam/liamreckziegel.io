@@ -1,5 +1,5 @@
 import React from 'react';
-import { Github, Linkedin, Mail, ExternalLink } from 'lucide-react';
+import { Github, Linkedin, Mail, ExternalLink, Calendar, Building2 } from 'lucide-react';
 
 const projects = [
   {
@@ -22,6 +22,45 @@ const projects = [
     tech: ["Python", "FastAPI", "React", "OpenAI"],
     github: "#",
     live: "#"
+  }
+];
+
+const experience = [
+  {
+    title: "Senior Software Engineer",
+    company: "TechCorp",
+    location: "San Francisco, CA",
+    period: "2022 - Present",
+    description: "Lead developer for the company's flagship product, managing a team of 5 engineers and architecting scalable solutions.",
+    achievements: [
+      "Reduced API response time by 40% through optimization",
+      "Implemented CI/CD pipeline reducing deployment time by 60%",
+      "Led migration from monolith to microservices architecture"
+    ]
+  },
+  {
+    title: "Software Engineer",
+    company: "StartupHub",
+    location: "Remote",
+    period: "2020 - 2022",
+    description: "Full-stack developer working on customer-facing applications and internal tools.",
+    achievements: [
+      "Developed real-time collaboration features using WebSocket",
+      "Built analytics dashboard increasing user engagement by 25%",
+      "Mentored 3 junior developers"
+    ]
+  },
+  {
+    title: "Junior Developer",
+    company: "CodeCraft",
+    location: "Boston, MA",
+    period: "2018 - 2020",
+    description: "Worked on frontend development and UI/UX improvements.",
+    achievements: [
+      "Implemented responsive design across all company products",
+      "Reduced page load time by 30% through optimization",
+      "Created reusable component library"
+    ]
   }
 ];
 
@@ -80,6 +119,43 @@ export default function Page() {
             >
               {skill}
             </span>
+          ))}
+        </div>
+      </section>
+
+      {/* Work Experience Section */}
+      <section className="mb-16">
+        <h2 className="font-bold text-2xl mb-6 tracking-tighter">
+          Work Experience
+        </h2>
+        <div className="space-y-8">
+          {experience.map((job, index) => (
+            <div key={index} className="relative pl-8 border-l-2 border-gray-200 dark:border-gray-800">
+              <div className="absolute -left-2 top-0">
+                <div className="w-4 h-4 rounded-full bg-gray-200 dark:bg-gray-800" />
+              </div>
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-semibold text-lg">{job.title}</h3>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                    <Calendar className="w-4 h-4 mr-1" />
+                    {job.period}
+                  </span>
+                </div>
+                <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm mb-2">
+                  <Building2 className="w-4 h-4 mr-1" />
+                  {job.company} • {job.location}
+                </div>
+                <p className="text-gray-700 dark:text-gray-300 mb-3">
+                  {job.description}
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                  {job.achievements.map((achievement, i) => (
+                    <li key={i} className="text-sm">{achievement}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           ))}
         </div>
       </section>
