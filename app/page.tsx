@@ -1,5 +1,8 @@
+"use client";
+
 import React from 'react';
 import { Github, Linkedin, Mail, ExternalLink, Calendar, Building2 } from 'lucide-react';
+import Timeline from './components/old-timeline';
 
 const projects = [
   {
@@ -205,6 +208,7 @@ export default function Page() {
           ))}
         </div>
       </section>
+
     </div>
   );
 }
