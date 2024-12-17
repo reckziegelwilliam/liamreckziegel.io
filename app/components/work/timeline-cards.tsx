@@ -1,4 +1,4 @@
-import { TimelineEvent } from '../../types/timeline';
+import { TimelineEvent } from '@/types/timeline';
 
 interface TimelineCardsProps {
   events: TimelineEvent[];

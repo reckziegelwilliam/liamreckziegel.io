@@ -1,4 +1,4 @@
-import { PathDimensions } from '../../types/timeline';
+import { PathDimensions } from '@/types/timeline';
 
 interface TimelineConeProps {
   scrollProgress: number;

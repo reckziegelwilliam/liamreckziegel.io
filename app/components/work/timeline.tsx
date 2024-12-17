@@ -5,7 +5,7 @@ import { TunnelEffect } from './tunnel-effect';
 import { TimelineCone } from './timeline-cone';
 import { CentralPoint } from './central-point';
 import { TimelineCards } from './timeline-cards';
-import { calculatePathDimensions } from '../../utils/calculations';
+import { calculatePathDimensions } from '@/utils/calculations';
 import { timelineEvents } from './timeline-events';
 import type { TimelineEvent } from '../../types/timeline';
 

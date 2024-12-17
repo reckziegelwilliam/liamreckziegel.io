@@ -15,4 +15,5 @@ export interface TunnelCircle {
   size: number;
   depth: number;
   opacity: number;
+  colorIntensity: number;
 }
