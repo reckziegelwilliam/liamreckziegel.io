@@ -109,7 +109,7 @@ export default function Blog({ params }) {
             url: `https://liamrex.io/blog/${post.slug}`,
             author: {
               '@type': 'Person',
-              name: 'Lee Robinson',
+              name: 'Liam Reckziegel',
             },
           }),
         }}

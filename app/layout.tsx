@@ -10,15 +10,15 @@ import { SandpackCSS } from './blog/[slug]/sandpack';
 export const metadata: Metadata = {
   metadataBase: new URL('https://liamrex.io'),
   title: {
-    default: 'Lee Robinson',
-    template: '%s | Lee Robinson',
+    default: 'Liam Reckziegel',
+    template: '%s | Liam Reckziegel',
   },
   description: 'Developer, writer, and creator.',
   openGraph: {
-    title: 'Lee Robinson',
+    title: 'Liam Reckziegel',
     description: 'Developer, writer, and creator.',
     url: 'https://liamrex.io',
-    siteName: 'Lee Robinson',
+    siteName: 'Liam Reckziegel',
     locale: 'en_US',
     type: 'website',
   },
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     },
   },
   twitter: {
-    title: 'Lee Robinson',
+    title: 'Liam Reckziegel',
     card: 'summary_large_image',
   },
   verification: {
