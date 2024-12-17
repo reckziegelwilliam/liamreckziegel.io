@@ -5,9 +5,9 @@ import { TunnelEffect } from './tunnel-effect';
 import { TimelineCone } from './timeline-cone';
 import { CentralPoint } from './central-point';
 import { TimelineCards } from './timeline-cards';
-import { calculatePathDimensions } from '../../utils/work';
+import { calculatePathDimensions } from '../../utils/calculations';
 import { timelineEvents } from './timeline-events';
-import type { TimelineEvent } from '../../utils/types';
+import type { TimelineEvent } from '../../types/timeline';
 
 const Timeline: React.FC = () => {
   const [scrollProgress, setScrollProgress] = useState(0);
