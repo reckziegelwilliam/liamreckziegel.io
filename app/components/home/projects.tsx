@@ -1,6 +1,6 @@
 import React from 'react';
 import { ProjectCard } from './project-card';
-import type { Project } from '@/types/project';
+import { Project } from '@/types/project';
 
 export function Projects({ projects }: { projects: Project[] }) {
   return (
