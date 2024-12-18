@@ -18,7 +18,8 @@
       "@/app/*": ["./app/*"],
       "@/components/*": ["./app/components/*"],
       "@/types/*": ["./app/types/*"],
-      "@/utils/*": ["./app/utils/*"]
+      "@/utils/*": ["./app/utils/*"],
+      "@/data/*": ["./app/data/*"],
     },
     "incremental": true,
     "plugins": [
