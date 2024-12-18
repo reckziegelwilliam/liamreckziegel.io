@@ -1,0 +1,1 @@
+export type ViewState = 'timeline' | 'modal' | 'dashboard';
