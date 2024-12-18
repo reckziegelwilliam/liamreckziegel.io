@@ -41,3 +41,56 @@ export const calculateTunnelCircle = (index: number, progress: number, windowWid
     colorIntensity
   };
 };
+
+export const calculateCardState = (index: number, scrollProgress: number) => {
+  const cardTransitionSpace = 25; // Each card gets 25% of scroll
+  const cardStart = index * cardTransitionSpace;
+  const cardMid = cardStart + (cardTransitionSpace / 2);
+  const cardEnd = cardStart + cardTransitionSpace;
+  
+  // Calculate where in the card's transition we are
+  const cardProgress = Math.max(0, Math.min(100, 
+    ((scrollProgress - cardStart) / cardTransitionSpace) * 100
+  ));
+
+  // Different phases of card animation
+  const isEntering = cardProgress < 33;
+  const isCenter = cardProgress >= 33 && cardProgress < 66;
+  const isExiting = cardProgress >= 66;
+
+  // Calculate scale based on phase
+  let scale = 1;
+  if (isEntering) {
+    scale = 0.5 + (cardProgress / 33) * 0.5;
+  } else if (isCenter) {
+    scale = 1 + ((cardProgress - 33) / 33) * 0.2;
+  } else if (isExiting) {
+    scale = 1.2 - ((cardProgress - 66) / 34) * 0.7;
+  }
+
+  // Calculate position
+  const baseOffset = 300;
+  let horizontalOffset = 0;
+  let verticalOffset = 0;
+  let depth = 0;
+
+  if (isEntering) {
+    horizontalOffset = baseOffset - (cardProgress / 33) * baseOffset;
+    depth = -1000 + (cardProgress / 33) * 500;
+  } else if (isCenter) {
+    horizontalOffset = 0;
+    depth = -500;
+  } else if (isExiting) {
+    horizontalOffset = -((cardProgress - 66) / 34) * baseOffset;
+    depth = -500 - ((cardProgress - 66) / 34) * 500;
+  }
+
+  return {
+    scale,
+    horizontalOffset,
+    verticalOffset,
+    depth,
+    opacity: cardProgress > 0 && cardProgress < 100 ? 1 : 0,
+    zIndex: isCenter ? 50 : 40
+  };
+};
