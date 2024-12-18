@@ -1,13 +1,17 @@
-import Timeline from '../components/work/timeline';
+import Timeline from '@/components/work/timeline';
 import { ArrowDown } from 'lucide-react';
 
 export default function Page() {
   return (
-    <section className="relative">
-      {/* Header Section */}
-      <div className="fixed top-0 left-0 right-0 z-10 bg-gradient-to-b from-background to-transparent pb-12">
+    <section className="relative mt-[60px]">
+      {/* Header Section - adjusted z-index and pointer-events */}
+      <div 
+        className="fixed top-[60px] left-0 right-0 bg-gradient-to-b from-background via-background/80 to-transparent pb-12 pointer-events-none"
+        style={{ zIndex: 20 }}
+      >
         <div className="max-w-4xl mx-auto px-4 pt-8">
-          <div className="flex flex-col gap-6">
+          {/* Make text content clickable */}
+          <div className="flex flex-col gap-6 pointer-events-auto">
             <div className="flex items-baseline justify-between">
               <h1 className="font-medium text-3xl tracking-tighter">
                 my work
@@ -32,14 +36,14 @@ export default function Page() {
       </div>
 
       {/* Timeline Component */}
-      <div className="relative">
+      <div className="relative" style={{ zIndex: 10 }}>
         <Timeline />
       </div>
 
-      {/* Initial View Gradient Overlay */}
+      {/* Initial View Gradient Overlay - adjusted z-index */}
       <div 
         className="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none"
-        style={{ zIndex: 1 }}
+        style={{ zIndex: 15 }}
       />
     </section>
   );
