@@ -5,9 +5,8 @@ import { TunnelEffect } from './tunnel-effect';
 import { TimelineCone } from './timeline-cone';
 import { CentralPoint } from './central-point';
 import { TimelineCards } from './timeline-cards';
-import { calculatePathDimensions } from '@/utils/calculations';
-import { timelineEvents } from './timeline-events';
-import type { TimelineEvent } from '../../types/timeline';
+import { calculatePathDimensions } from '@/app/utils/calculations';
+import { experience } from '@/data/experience';
 
 const Timeline: React.FC = () => {
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -29,13 +28,16 @@ const Timeline: React.FC = () => {
         const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
         const currentProgress = Math.min(100, (window.scrollY / maxScroll) * 100);
         setScrollProgress(currentProgress);
-
-        const adjustedProgress = Math.max(0, currentProgress - 15);
-        const cardIndex = Math.floor((adjustedProgress / 85) * timelineEvents.length);
-        setActiveCardIndex(Math.min(cardIndex, timelineEvents.length - 1));
+  
+        // Adjust the timing for card transitions
+        // Each card gets ~25% of scroll space to complete its animation
+        const cardTransitionSpace = 25;
+        const adjustedProgress = Math.max(0, currentProgress - 10); // Start cards slightly earlier
+        const cardIndex = Math.floor(adjustedProgress / cardTransitionSpace);
+        setActiveCardIndex(Math.min(cardIndex, experience.length - 1));
       });
     };
-
+  
     window.addEventListener('scroll', handleScroll);
     handleScroll();
     
@@ -60,10 +62,31 @@ const Timeline: React.FC = () => {
           className="relative w-full h-full"
           style={{ transformStyle: 'preserve-3d' }}
         >
-          <TunnelEffect scrollProgress={scrollProgress} />
-          <TimelineCone scrollProgress={scrollProgress} pathDimensions={pathDimensions} />
-          <CentralPoint scrollProgress={scrollProgress} />
-          <TimelineCards events={timelineEvents} scrollProgress={scrollProgress} />
+          {/* Background elements */}
+          <div className="z-10">
+            <TunnelEffect scrollProgress={scrollProgress} />
+          </div>
+          
+          {/* Cone with adjusted opacity */}
+          <div className="z-20">
+            <TimelineCone 
+              scrollProgress={scrollProgress} 
+              pathDimensions={pathDimensions}
+            />
+          </div>
+  
+          {/* Center point */}
+          <div className="z-30">
+            <CentralPoint scrollProgress={scrollProgress} />
+          </div>
+  
+          {/* Cards on top */}
+          <div className="z-40">
+            <TimelineCards 
+              events={experience} 
+              scrollProgress={scrollProgress} 
+            />
+          </div>
         </div>
       </div>
     </div>

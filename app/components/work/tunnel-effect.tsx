@@ -1,4 +1,4 @@
-import { calculateTunnelCircle } from '@/utils/calculations';
+import { calculateTunnelCircle } from '@/app/utils/calculations';
 interface TunnelEffectProps {
   scrollProgress: number;
 }
