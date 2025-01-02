@@ -1,5 +1,15 @@
-import Timeline from '@/components/work/timeline';
 import { ArrowDown } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const Timeline = dynamic(() => import('@/components/work/timeline'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-screen flex items-center justify-center">
+      <div className="animate-pulse text-muted-foreground">Loading timeline...</div>
+    </div>
+  )
+});
+
 
 export default function Page() {
   return (
