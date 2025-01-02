@@ -6,7 +6,7 @@ export default function Page() {
     <section className="relative mt-[60px]">
       {/* Header Section - adjusted z-index and pointer-events */}
       <div 
-        className="fixed top-[60px] left-0 right-0 bg-gradient-to-b from-background via-background/80 to-transparent pb-12 pointer-events-none"
+        className="fixed top-[80px] left-0 right-0 bg-gradient-to-b from-background via-background/80 to-transparent pb-12 pointer-events-none"
         style={{ zIndex: 20 }}
       >
         <div className="max-w-4xl mx-auto px-4 pt-8">
@@ -36,7 +36,7 @@ export default function Page() {
       </div>
 
       {/* Timeline Component */}
-      <div className="relative" style={{ zIndex: 10 }}>
+      <div className="relative top-[80px]" style={{ zIndex: 10 }}>
         <Timeline />
       </div>
 

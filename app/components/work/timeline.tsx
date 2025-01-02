@@ -70,7 +70,7 @@ const Timeline: React.FC = () => {
           {/* Cone with adjusted opacity */}
           <div className="z-20">
             <TimelineCone 
-              scrollProgress={scrollProgress} 
+              scrollProgress={scrollProgress}
               pathDimensions={pathDimensions}
             />
           </div>
