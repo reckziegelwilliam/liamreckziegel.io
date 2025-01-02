@@ -8,6 +8,8 @@ const nextConfig = {
   experimental: {
     ppr: true,
     useLightningcss: true,
+    serverActions: true,  // auth
+    esmExternals: 'loose' // dependency resolution
   },
   async redirects() {
     if (!process.env.POSTGRES_URL) {
@@ -43,7 +45,8 @@ const ContentSecurityPolicy = `
     media-src 'none';
     connect-src *;
     font-src 'self' data:;
-    frame-src 'self' *.codesandbox.io vercel.live;
+    frame-src 'self' *.codesandbox.io vercel.live https://github.com;
+    form-action 'self' github.com;
 `;
 
 const securityHeaders = [

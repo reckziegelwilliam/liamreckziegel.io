@@ -4,14 +4,29 @@ import GitHub from 'next-auth/providers/github';
 export const {
   handlers: { GET, POST },
   auth,
+  signIn,
+  signOut,
 } = NextAuth({
-  providers: [
-    GitHub({
-      clientId: process.env.OAUTH_CLIENT_KEY as string,
-      clientSecret: process.env.OAUTH_CLIENT_SECRET as string,
-    }),
-  ],
-  pages: {
-    signIn: '/sign-in',
+  providers: [GitHub],
+  debug: false,
+  trustHost: true,
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true
+      }
+    }
   },
+  callbacks: {
+    jwt({ token, profile }) {
+      if (profile) {
+        token.id = profile.id;
+      }
+      return token;
+    }
+  }
 });
