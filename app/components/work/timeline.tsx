@@ -11,9 +11,11 @@ import { experience } from '@/data/experience';
 const Timeline: React.FC = () => {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [activeCardIndex, setActiveCardIndex] = useState(-1);
-  const [windowWidth, setWindowWidth] = useState(0);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     const handleResize = () => setWindowWidth(window.innerWidth);
     handleResize();
     window.addEventListener('resize', handleResize);
@@ -21,6 +23,8 @@ const Timeline: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!isClient) return;
+
     let frameId: number;
     
     const handleScroll = () => {
@@ -29,10 +33,8 @@ const Timeline: React.FC = () => {
         const currentProgress = Math.min(100, (window.scrollY / maxScroll) * 100);
         setScrollProgress(currentProgress);
   
-        // Adjust the timing for card transitions
-        // Each card gets ~25% of scroll space to complete its animation
         const cardTransitionSpace = 25;
-        const adjustedProgress = Math.max(0, currentProgress - 10); // Start cards slightly earlier
+        const adjustedProgress = Math.max(0, currentProgress - 10);
         const cardIndex = Math.floor(adjustedProgress / cardTransitionSpace);
         setActiveCardIndex(Math.min(cardIndex, experience.length - 1));
       });
@@ -43,11 +45,13 @@ const Timeline: React.FC = () => {
     
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      cancelAnimationFrame(frameId);
+      if (frameId) cancelAnimationFrame(frameId);
     };
-  }, []);
+  }, [isClient]);
 
-  const pathDimensions = calculatePathDimensions(scrollProgress, windowWidth);
+  if (!isClient) return null;
+
+  const pathDimensions = calculatePathDimensions(scrollProgress, windowWidth)
 
   return (
     <div className="relative min-h-[500vh] w-full">
