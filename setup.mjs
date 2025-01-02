@@ -35,25 +35,27 @@ const workPage = `export default function Page() {
 `;
 
 const deleteFolderRecursive = async (path) => {
-  const stat = await fs.stat(path);
-  if (stat.isDirectory()) {
-    const files = await fs.readdir(path);
-    await Promise.all(
-      files.map((file) => deleteFolderRecursive(`${path}/${file}`))
-    );
-    await fs.rmdir(path);
-  } else {
-    await fs.unlink(path);
+  try {
+    const stat = await fs.stat(path);
+    if (stat.isDirectory()) {
+      const files = await fs.readdir(path);
+      await Promise.all(
+        files.map((file) => deleteFolderRecursive(`${path}/${file}`))
+      );
+      await fs.rmdir(path);
+    } else {
+      await fs.unlink(path);
+    }
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err; // Only throw if error is not "file not found"
   }
 };
 
+// Modify the main function to ensure directories exist before operating on them
 (async () => {
   dotenv.config();
 
   if (process.env.IS_TEMPLATE === 'false') {
-    // This means it's not the template, it's my legit site
-    // I orderride the env variable for my site. This means that when
-    // folks clone this repo for the first time, it will delete my personal content
     return;
   }
 
@@ -62,6 +64,22 @@ const deleteFolderRecursive = async (path) => {
   const appDir = path.join(process.cwd(), 'app');
   const workDir = path.join(process.cwd(), 'app', 'work');
 
+  // Ensure directories exist before trying to delete them
+  const ensureDir = async (dir) => {
+    try {
+      await fs.mkdir(dir, { recursive: true });
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+    }
+  };
+
+  // Ensure all directories exist first
+  await ensureDir(contentDir);
+  await ensureDir(imagesDir);
+  await ensureDir(appDir);
+  await ensureDir(workDir);
+
+  // Now proceed with the deletion and recreation
   await deleteFolderRecursive(contentDir);
   await deleteFolderRecursive(imagesDir);
   await fs.mkdir(contentDir);
