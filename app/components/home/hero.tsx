@@ -1,12 +1,6 @@
-import { Github, Linkedin, Mail, ArrowDown } from 'lucide-react';
-import { SocialLink } from '@/app/types/skill';
+import { ArrowDown } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-const socialLinks: SocialLink[] = [
-  { platform: 'GitHub', url: '#', icon: Github },
-  { platform: 'LinkedIn', url: '#', icon: Linkedin },
-  { platform: 'Email', url: 'mailto:your@email.com', icon: Mail }
-];
+import { socialLinks, heroData } from '@/data/hero';
 
 export function Hero() {
   return (
@@ -17,14 +11,13 @@ export function Hero() {
         transition={{ duration: 0.5 }}
       >
         <h1 className="font-bold text-4xl md:text-5xl lg:text-6xl mb-4 tracking-tighter">
-          John Doe
+          {heroData.name}
         </h1>
         <h2 className="text-xl md:text-2xl text-gray-600 dark:text-gray-400 mb-6">
-          Full Stack Software Engineer
+          {heroData.title}
         </h2>
         <p className="text-gray-700 dark:text-gray-300 mb-8 max-w-xl">
-          I build accessible, scalable web applications with modern technologies.
-          Currently focused on building robust full-stack solutions at TechCorp.
+          {heroData.description}
         </p>
         
         <div className="flex flex-wrap gap-4">

@@ -2,8 +2,8 @@ import { Project } from "@/types/project";
 
 export const projects: Project[] = [
   {
-    title: "Project Management Dashboard",
-    description: "A full-stack application built with React and Node.js that helps teams track project progress and collaborate effectively.",
+    title: "XXXX - In Development",
+    description: "NA",
     tech: ["React", "Node.js", "PostgreSQL", "Tailwind CSS"],
     github: "https://github.com/username/project",
     demoType: "video",
@@ -12,8 +12,8 @@ export const projects: Project[] = [
     }
   },
   {
-    title: "E-commerce Platform",
-    description: "Modern e-commerce solution with real-time inventory management and secure payment processing.",
+    title: "CrossCourt",
+    description: "Community platform for tennis players to connect and schedule matches.",
     tech: ["Next.js", "Stripe", "MongoDB", "TypeScript"],
     github: "https://github.com/username/ecommerce",
     demoType: "sandbox",
@@ -22,13 +22,33 @@ export const projects: Project[] = [
     }
   },
   {
-    title: "AI Content Generator",
-    description: "Web application that leverages machine learning APIs to generate and optimize content for various purposes.",
+    title: "ProConnect",
+    description: "Information sharing platform that connects professionals with industry-specific resources and tools.",
     tech: ["Python", "FastAPI", "React", "OpenAI"],
     live: "https://your-deployed-app.com",
     demoType: "code",
     demoContent: {
-      codeUrl: "https://github.com/username/ai-generator/blob/main/app.py"
+        codeUrl: "https://github.com/username/ai-generator/blob/main/app.py"
+      }
+  },
+  {
+    title: "InSpread",
+    description: "Investment tracking platform that provides real-time market data and portfolio analysis tools.",
+    tech: ["Vue", "Express", "MongoDB", "Docker"],
+    github: "www.github.com",
+    demoType: "live",
+    demoContent: {
+      liveUrl: "https://your-deployed-app.com"
+    }
+  },
+  {
+    title: "Yieldr (formerly SeedMoney)",
+    description: "Government grant application platform for farmers.",
+    tech: ["React", "Node.js", "MongoDB", "Tailwind CSS"],
+    github: "www.github.com",
+    demoType: "video",
+    demoContent: {
+      videoUrl: "/demos/crowdfunding.mp4"
     }
   }
 ];

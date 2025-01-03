@@ -8,8 +8,6 @@ const nextConfig = {
   experimental: {
     ppr: true,
     useLightningcss: true,
-    serverActions: true,  // auth
-    esmExternals: 'loose' // dependency resolution
   },
   async redirects() {
     if (!process.env.POSTGRES_URL) {
