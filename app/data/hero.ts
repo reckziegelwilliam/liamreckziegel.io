@@ -27,5 +27,5 @@ export const socialLinks: SocialLink[] = [
 export const heroData = {
   name: 'William // Liam // Reckziegel',
   title: 'Software Engineer',
-  description: 'I build accessible, scalable full-stack applications and cloud solutions using modern technologies. 6+ years of experience. Currently focused on crafting scalable web applications that serve communities.'
+  description: 'Versatile Software Engineer with 6+ years in full-stack development and cloud architecture. Proven success in rebuilding apps, launching MVPs, and scaling systems from concept to production. Adept at balancing speed and reliability in startup, agency, and enterprise environments.'
 };

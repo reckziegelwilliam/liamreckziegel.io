@@ -20,6 +20,8 @@
       "@/types/*": ["./app/types/*"],
       "@/utils/*": ["./app/utils/*"],
       "@/data/*": ["./app/data/*"],
+      "@/hooks/*": ["./app/hooks/*"],
+      "@/lib/*": ["./app/lib/*"]
     },
     "incremental": true,
     "plugins": [

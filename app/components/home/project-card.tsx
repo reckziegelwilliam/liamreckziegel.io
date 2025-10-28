@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { Github, ExternalLink, Code, Play, Pause, Globe, Codesandbox } from 'lucide-react';
 import type { Project } from '@/types/project';

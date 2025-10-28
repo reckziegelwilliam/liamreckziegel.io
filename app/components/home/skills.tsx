@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Code, Server, Cloud, Wrench } from 'lucide-react';

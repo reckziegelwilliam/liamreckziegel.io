@@ -1,69 +1,58 @@
-"use client";
-
 import React from 'react';
-import { motion, useScroll } from 'framer-motion';
 import { Hero } from '@/components/home/hero';
 import { Skills } from '@/components/home/skills';
 import { Experience } from '@/components/home/experience';
 import { Projects } from '@/components/home/projects';
-
-
+import { GitHubStatsCard } from '@/components/github/stats-card';
+import { LanguageStats } from '@/components/github/language-stats';
+import { getGitHubStats, getLanguageStats, getCurrentYearContributions } from '@/lib/github';
 import { skills } from '@/app/data/skill';
 import { experience } from '@/app/data/experience';
 import { projects } from '@/app/data/projects';
+import { PageWrapper } from '@/components/page-wrapper';
 
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.15
-    }
-  }
-};
-
-const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 }
-};
-
-export default function Page() {
-  const { scrollYProgress } = useScroll();
+export default async function Page() {
+  // Fetch GitHub data in parallel
+  const [githubStats, languageStats, contributions] = await Promise.all([
+    getGitHubStats(),
+    getLanguageStats(),
+    getCurrentYearContributions(),
+  ]);
 
   return (
-    <motion.div
-      className="max-w-4xl mx-auto px-4 py-8"
-      initial="hidden"
-      animate="show"
-      variants={container}
-    >
+    <PageWrapper>
       {/* Hero Section */}
-      <motion.div variants={item}>
-        <Hero />
-      </motion.div>
+      <Hero />
+
+      {/* GitHub Activity Section */}
+      <section className="my-16">
+        <h2 className="font-bold text-2xl mb-6 tracking-tighter">
+          GitHub Activity
+        </h2>
+        <GitHubStatsCard stats={githubStats} contributions={contributions} />
+        
+        <div className="mt-8">
+          <LanguageStats languages={languageStats} />
+        </div>
+
+        <div className="mt-6 text-center">
+          <a
+            href="/github"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors border border-blue-500/20"
+          >
+            View Full GitHub Profile →
+          </a>
+        </div>
+      </section>
 
       {/* Skills Section */}
-      <motion.div variants={item}>
-        <Skills skills={skills} />
-      </motion.div>
+      <Skills skills={skills} />
 
       {/* Work Experience Section */}
-      <motion.div variants={item}>
-        <Experience experience={experience} />
-      </motion.div>
+      <Experience experience={experience} />
 
       {/* Projects Section */}
-      <motion.div variants={item}>
-        <Projects projects={projects} />
-      </motion.div>
-
-      {/* Scroll Progress Indicator */}
-      <motion.div
-        className="fixed bottom-0 left-0 right-0 h-1 bg-blue-500 origin-left"
-        style={{
-          scaleX: scrollYProgress
-        }}
-      />
-    </motion.div>
+      <Projects projects={projects} />
+    </PageWrapper>
   );
 }
