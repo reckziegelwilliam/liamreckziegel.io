@@ -1,3 +1,5 @@
+'use client';
+
 import { ArrowDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { socialLinks, heroData } from '@/data/hero';
