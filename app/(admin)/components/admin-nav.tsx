@@ -70,13 +70,20 @@ export function AdminNav({ user }: AdminNavProps) {
       </nav>
 
       {/* Footer */}
-      <div className="absolute bottom-4 left-4 right-4">
+      <div className="absolute bottom-4 left-4 right-4 space-y-2">
         <Link
           href="/"
           className="flex items-center gap-3 px-4 py-3 rounded-lg text-[#9CA3AF] hover:bg-[#0A0E1A] hover:text-[#E8E9ED] transition-colors"
         >
           <Home className="w-5 h-5" />
           <span>Back to Site</span>
+        </Link>
+        <Link
+          href="/api/auth/signout"
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-[#9CA3AF] hover:bg-[#FFB84D]/20 hover:text-[#FFB84D] transition-colors"
+        >
+          <LogOut className="w-5 h-5" />
+          <span>Sign Out</span>
         </Link>
       </div>
     </aside>

@@ -10,6 +10,7 @@ export const {
   providers: [GitHub],
   debug: false,
   trustHost: true,
+  basePath: '/api/auth',
   cookies: {
     sessionToken: {
       name: `__Secure-next-auth.session-token`,
