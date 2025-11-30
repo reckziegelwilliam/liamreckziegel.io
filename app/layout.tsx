@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import { Navbar } from './components/nav';
+import { Footer } from './components/footer';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { SandpackCSS } from './blog/[slug]/sandpack';
@@ -13,10 +14,10 @@ export const metadata: Metadata = {
     default: 'Liam Reckziegel',
     template: '%s | Liam Reckziegel',
   },
-  description: 'Developer, writer, and creator.',
+  description: 'Liam Reckziegel - Founding Engineer & Product Partner specializing in React Native, Next.js, and AWS. Building products that scale from 0 to 1000+ users.',
   openGraph: {
     title: 'Liam Reckziegel',
-    description: 'Developer, writer, and creator.',
+    description: 'Liam Reckziegel - Founding Engineer & Product Partner specializing in React Native, Next.js, and AWS. Building products that scale from 0 to 1000+ users.',
     url: 'https://liamrex.io',
     siteName: 'Liam Reckziegel',
     locale: 'en_US',
@@ -54,7 +55,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={cx(
-        'text-black bg-white dark:text-white dark:bg-[#111010]',
+        'text-black bg-white dark:text-[#E8E9ED] dark:bg-[#0A0E1A]',
         GeistSans.variable,
         GeistMono.variable
       )}
@@ -62,10 +63,11 @@ export default function RootLayout({
       <head>
         <SandpackCSS />
       </head>
-      <body className="antialiased max-w-2xl mb-40 flex flex-col md:flex-row mx-4 mt-8 lg:mx-auto">
+      <body className="antialiased max-w-6xl mb-40 flex flex-col md:flex-row mx-4 mt-8 lg:mx-auto">
         <main className="flex-auto min-w-0 mt-6 flex flex-col px-2 md:px-0">
           <Navbar />
           {children}
+          <Footer />
           <Analytics />
           <SpeedInsights />
         </main>
