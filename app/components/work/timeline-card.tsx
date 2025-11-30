@@ -30,9 +30,9 @@ export function TimelineCard({ experience, index }: TimelineCardProps) {
   const cardClassName = useMemo(() => {
     const base = 'p-6 rounded-xl border-2 cursor-pointer transition-all duration-300';
     const viewState = isInView 
-      ? 'bg-white dark:bg-gray-900 border-blue-500/30 shadow-lg' 
-      : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800';
-    const hover = 'hover:shadow-xl hover:border-blue-500/50';
+      ? 'bg-[#1A1F35] dark:bg-[#1A1F35] border-[#00D9FF]/30 shadow-lg' 
+      : 'bg-[#0A0E1A] dark:bg-[#0A0E1A] border-[#1A1F35]';
+    const hover = 'hover:shadow-xl hover:border-[#00D9FF]';
     return `${base} ${viewState} ${hover}`;
   }, [isInView]);
 
@@ -51,26 +51,15 @@ export function TimelineCard({ experience, index }: TimelineCardProps) {
         <div className="flex items-start gap-4 pl-4">
           {/* Timeline dot */}
           <div className="relative flex-shrink-0 pt-2" aria-hidden="true">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: isInView ? 1 : 0.5 }}
+            <div
               className={`
-                w-3 h-3 rounded-full
+                w-3 h-3 rounded-full transition-all duration-300
                 ${isInView 
-                  ? 'bg-blue-500 shadow-lg shadow-blue-500/50' 
-                  : 'bg-gray-300 dark:bg-gray-700'
+                  ? 'bg-[#00D9FF] shadow-lg shadow-[#00D9FF]/50' 
+                  : 'bg-[#9CA3AF]'
                 }
               `}
             />
-            {/* Pulse effect when in view */}
-            {isInView && (
-              <motion.div
-                className="absolute inset-0 rounded-full bg-blue-500"
-                initial={{ scale: 1, opacity: 0.5 }}
-                animate={{ scale: 2.5, opacity: 0 }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            )}
           </div>
           
           {/* Content */}
@@ -157,26 +146,15 @@ export function TimelineCard({ experience, index }: TimelineCardProps) {
 
         {/* Timeline dot */}
         <div className="relative flex-shrink-0" aria-hidden="true">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: isInView ? 1 : 0.5 }}
+          <div
             className={`
-              w-4 h-4 rounded-full border-4 
+              w-4 h-4 rounded-full border-4 transition-all duration-300
               ${isInView 
-                ? 'bg-blue-500 border-blue-500 shadow-lg shadow-blue-500/50' 
-                : 'bg-gray-300 dark:bg-gray-700 border-gray-300 dark:border-gray-700'
+                ? 'bg-[#00D9FF] border-[#00D9FF] shadow-lg shadow-[#00D9FF]/50' 
+                : 'bg-[#9CA3AF] border-[#9CA3AF]'
               }
             `}
           />
-          {/* Pulse effect when in view */}
-          {isInView && (
-            <motion.div
-              className="absolute inset-0 rounded-full bg-blue-500"
-              initial={{ scale: 1, opacity: 0.5 }}
-              animate={{ scale: 2, opacity: 0 }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-          )}
         </div>
 
         {/* Empty space on other side */}
