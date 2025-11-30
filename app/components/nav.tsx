@@ -4,17 +4,17 @@ const navItems = {
   '/': {
     name: 'home',
   },
+  '/case-studies': {
+    name: 'case studies',
+  },
   '/work': {
     name: 'work',
   },
-  '/github': {
-    name: 'github',
+  '/playbooks': {
+    name: 'playbooks',
   },
-  '/blog': {
-    name: 'blog',
-  },
-  '/guestbook': {
-    name: 'guestbook',
+  '/contact': {
+    name: 'contact',
   },
 };
 
