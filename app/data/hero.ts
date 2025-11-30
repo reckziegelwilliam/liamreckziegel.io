@@ -25,7 +25,7 @@ export const socialLinks: SocialLink[] = [
 ];
 
 export const heroData = {
-  name: 'William // Liam // Reckziegel',
-  title: 'Software Engineer',
-  description: 'Versatile Software Engineer with 6+ years in full-stack development and cloud architecture. Proven success in rebuilding apps, launching MVPs, and scaling systems from concept to production. Adept at balancing speed and reliability in startup, agency, and enterprise environments.'
+  name: 'Liam Reckziegel',
+  title: 'Founding Engineer & Product Partner',
+  description: 'I rebuild broken apps, ship new products, and design systems that last. 6+ years turning 0→1 ideas into production-ready platforms. I\'ve rebuilt 3 failing apps, shipped 50+ sites through my studio, and scaled systems to thousands of concurrent users.'
 };
