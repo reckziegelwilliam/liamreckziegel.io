@@ -7,6 +7,7 @@ import { getBlogPosts } from 'app/db/blog';
 import ViewCounter from '../view-counter';
 import { increment } from 'app/db/actions';
 import { unstable_noStore as noStore } from 'next/cache';
+import { PostCover } from '@/app/components/post-cover';
 
 export async function generateMetadata({
   params,
@@ -114,6 +115,14 @@ export default function Blog({ params }) {
           }),
         }}
       />
+      
+      {/* PostCover component with dynamic text overlay */}
+      <PostCover
+        title={post.metadata.title}
+        subtitle={post.metadata.summary}
+        label="Blog Post"
+      />
+
       <h1 className="title font-medium text-2xl tracking-tighter max-w-[650px]">
         {post.metadata.title}
       </h1>
