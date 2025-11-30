@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { submitContactForm } from '@/app/actions/posts';
 import { Briefcase, Users, Loader2, CheckCircle } from 'lucide-react';
 import { PageViewTracker } from '@/app/components/page-view-tracker';
 
-export default function ContactPage() {
+function ContactForm() {
   const searchParams = useSearchParams();
   const typeParam = searchParams.get('type');
   const [type, setType] = useState<'hire' | 'studio'>(
@@ -296,6 +296,24 @@ export default function ContactPage() {
         </p>
       </div>
     </section>
+  );
+}
+
+export default function ContactPage() {
+  return (
+    <Suspense fallback={
+      <section className="max-w-4xl mx-auto">
+        <PageViewTracker />
+        <h1 className="text-4xl md:text-5xl font-bold mb-6 tracking-tight">
+          Let's Work Together
+        </h1>
+        <p className="text-lg text-[#9CA3AF] dark:text-[#9CA3AF] mb-12 max-w-2xl">
+          Loading...
+        </p>
+      </section>
+    }>
+      <ContactForm />
+    </Suspense>
   );
 }
 
