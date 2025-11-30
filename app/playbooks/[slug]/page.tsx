@@ -26,12 +26,15 @@ const components = {
   code: Code,
 };
 
-export async function generateStaticParams() {
-  const posts = await getPublishedPosts();
-  return posts.map((post) => ({
-    slug: post.slug,
-  }));
-}
+// Disable static generation until database is set up
+export const dynamic = 'force-dynamic';
+
+// export async function generateStaticParams() {
+//   const posts = await getPublishedPosts();
+//   return posts.map((post) => ({
+//     slug: post.slug,
+//   }));
+// }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const post = await getPostBySlug(params.slug);

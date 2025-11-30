@@ -3,6 +3,9 @@ import Link from 'next/link';
 import { Clock, Tag, Calendar } from 'lucide-react';
 import type { Metadata } from 'next';
 
+// Disable static generation until database is set up
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Playbooks',
   description: 'Technical guides, lessons learned, and insights from building products at scale.',
