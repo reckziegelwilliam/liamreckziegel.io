@@ -1,10 +1,14 @@
+import { Hero } from '@/components/home/hero';
+import { WhatIDo } from '@/components/home/what-i-do';
+import { Experience } from '@/components/home/experience';
+import { experience } from '@/data/experience';
+
 export default function Page() {
   return (
-    <section>
-      <h1 className="font-medium text-2xl mb-8 tracking-tighter">my portfolio</h1>
-      <p className="prose prose-neutral dark:prose-invert">
-        This is your new portfolio.
-      </p>
-    </section>
+    <>
+      <Hero />
+      <WhatIDo />
+      <Experience experience={experience} />
+    </>
   );
 }
