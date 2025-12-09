@@ -44,9 +44,9 @@ export default async function PlaybooksPage() {
               href={`/playbooks/${post.slug}`}
               className="block group"
             >
-              <article className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 transition-all duration-300 hover:border-[#00D9FF] hover:shadow-lg hover:shadow-[#00D9FF]/20">
-                {/* Cover Image Section */}
-                <div className="relative aspect-[16/9] w-full overflow-hidden">
+              <article className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 transition-all duration-300 hover:border-[#00D9FF] hover:shadow-lg hover:shadow-[#00D9FF]/20">
+                {/* Cover Image Section with Two-Column Layout */}
+                <div className="relative aspect-[1200/630] w-full overflow-hidden">
                   <Image
                     src="/liam_rex_playbook.png"
                     alt=""
@@ -54,22 +54,23 @@ export default async function PlaybooksPage() {
                     className="object-cover"
                   />
                   
-                  {/* Dark overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/70 to-slate-950/10" />
-                  
-                  {/* Text overlay */}
-                  <div className="relative z-10 flex h-full flex-col justify-between p-6">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 text-xs text-slate-200 w-fit">
-                      <span className="h-2 w-2 rounded-full bg-gradient-to-tr from-emerald-400 to-sky-400" />
-                      {post.type || 'Playbook'}
+                  {/* Content Grid - Split into two halves */}
+                  <div className="relative z-10 grid grid-cols-2 h-full">
+                    {/* Left Side - Label Badge */}
+                    <div className="flex items-start p-6">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 text-xs text-slate-200">
+                        <span className="h-2 w-2 rounded-full bg-gradient-to-tr from-emerald-400 to-sky-400" />
+                        {post.type || 'Playbook'}
+                      </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <h2 className="text-xl md:text-2xl font-semibold text-slate-50 group-hover:text-[#00D9FF] transition-colors line-clamp-2">
+                    {/* Right Side - Text Content */}
+                    <div className="flex flex-col justify-center p-6 bg-white/95 dark:bg-slate-950/95">
+                      <h2 className="text-lg md:text-xl lg:text-2xl font-semibold text-neutral-900 dark:text-neutral-100 mb-2 group-hover:text-[#00D9FF] transition-colors line-clamp-2">
                         {post.title}
                       </h2>
                       {post.subtitle && (
-                        <p className="text-sm text-slate-200/80 line-clamp-2">
+                        <p className="text-sm md:text-base text-neutral-700 dark:text-neutral-300 line-clamp-2 mb-3">
                           {post.subtitle}
                         </p>
                       )}
