@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { MarkdownEditor } from '@/app/components/markdown-editor';
 import { updatePostAction, deletePostAction } from '@/app/actions/posts';
 import { PostWithTags } from '@/app/db/posts';
@@ -12,6 +13,7 @@ interface EditPostFormProps {
 }
 
 export default function EditPostForm({ post }: EditPostFormProps) {
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formData, setFormData] = useState({
@@ -34,28 +36,19 @@ export default function EditPostForm({ post }: EditPostFormProps) {
       });
       form.append('status', status);
 
-      await updatePostAction(post.id, form);
-      // Server action will handle redirect, but this shouldn't be reached
-      // unless there's an error
+      const result = await updatePostAction(post.id, form);
+      
+      if (result.success) {
+        // Success - redirect to blog management
+        router.push('/admin/blog');
+      } else {
+        // Show error
+        alert(result.error || 'Failed to update post. Please try again.');
+        setIsSubmitting(false);
+      }
     } catch (error: any) {
       console.error('Error updating post:', error);
-      
-      // Check if this is a redirect error (which is actually success in Next.js)
-      // In production, check for NEXT_REDIRECT in the digest or error type
-      const isRedirect = 
-        error?.message?.includes('NEXT_REDIRECT') || 
-        error?.digest?.startsWith('NEXT_REDIRECT') ||
-        error?.digest?.includes('NEXT_REDIRECT') ||
-        error?.type === 'redirect';
-      
-      if (isRedirect) {
-        // This is actually a successful redirect, don't show error
-        return;
-      }
-      
-      // Show user-friendly error message only for actual errors
-      const errorMessage = error?.message || 'Failed to update post. Please try again.';
-      alert(errorMessage);
+      alert('Failed to update post. Please try again.');
       setIsSubmitting(false);
     }
   };
@@ -68,27 +61,20 @@ export default function EditPostForm({ post }: EditPostFormProps) {
 
     setIsSubmitting(true);
     try {
-      await deletePostAction(post.id);
-      // Server action will handle redirect
+      const result = await deletePostAction(post.id);
+      
+      if (result.success) {
+        // Success - redirect to blog management
+        router.push('/admin/blog');
+      } else {
+        // Show error
+        alert(result.error || 'Failed to delete post. Please try again.');
+        setIsSubmitting(false);
+        setShowDeleteConfirm(false);
+      }
     } catch (error: any) {
       console.error('Error deleting post:', error);
-      
-      // Check if this is a redirect error (which is actually success in Next.js)
-      // In production, check for NEXT_REDIRECT in the digest or error type
-      const isRedirect = 
-        error?.message?.includes('NEXT_REDIRECT') || 
-        error?.digest?.startsWith('NEXT_REDIRECT') ||
-        error?.digest?.includes('NEXT_REDIRECT') ||
-        error?.type === 'redirect';
-      
-      if (isRedirect) {
-        // This is actually a successful redirect, don't show error
-        return;
-      }
-      
-      // Show user-friendly error message only for actual errors
-      const errorMessage = error?.message || 'Failed to delete post. Please try again.';
-      alert(errorMessage);
+      alert('Failed to delete post. Please try again.');
       setIsSubmitting(false);
       setShowDeleteConfirm(false);
     }

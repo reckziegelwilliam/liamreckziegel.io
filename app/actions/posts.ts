@@ -1,7 +1,6 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 import {
   createPost,
   updatePost,
@@ -16,7 +15,7 @@ export async function createPostAction(formData: FormData) {
     // Security: Verify user is authenticated
     const session = await auth();
     if (!session?.user) {
-      throw new Error('Unauthorized: You must be signed in to create posts');
+      return { success: false, error: 'Unauthorized: You must be signed in to create posts' };
     }
     
     const title = formData.get('title') as string;
@@ -31,7 +30,7 @@ export async function createPostAction(formData: FormData) {
 
     // Validate required fields
     if (!title || !content) {
-      throw new Error('Title and content are required');
+      return { success: false, error: 'Title and content are required' };
     }
 
     // Generate slug from title if not provided
@@ -70,14 +69,16 @@ export async function createPostAction(formData: FormData) {
       revalidatePath(`/blog/${slug}`);
       revalidatePath(`/playbooks/${slug}`);
     }
+    
+    return { success: true, slug };
   } catch (error) {
     // Log the actual error server-side
     console.error('[createPostAction] Error:', error);
-    // Re-throw with more context
-    throw new Error(`Failed to create post: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
-  
-  redirect('/admin/blog');
 }
 
 export async function updatePostAction(id: number, formData: FormData) {
@@ -85,7 +86,7 @@ export async function updatePostAction(id: number, formData: FormData) {
     // Security: Verify user is authenticated
     const session = await auth();
     if (!session?.user) {
-      throw new Error('Unauthorized: You must be signed in to edit posts');
+      return { success: false, error: 'Unauthorized: You must be signed in to edit posts' };
     }
 
     const title = formData.get('title') as string;
@@ -100,7 +101,7 @@ export async function updatePostAction(id: number, formData: FormData) {
 
     // Validate required fields
     if (!title || !content) {
-      throw new Error('Title and content are required');
+      return { success: false, error: 'Title and content are required' };
     }
 
     // Generate slug from title if not provided
@@ -139,14 +140,16 @@ export async function updatePostAction(id: number, formData: FormData) {
       revalidatePath(`/blog/${slug}`);
       revalidatePath(`/playbooks/${slug}`);
     }
+    
+    return { success: true, slug };
   } catch (error) {
     // Log the actual error server-side
     console.error('[updatePostAction] Error:', error);
-    // Re-throw with more context
-    throw new Error(`Failed to update post: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
-  
-  redirect('/admin/blog');
 }
 
 export async function deletePostAction(id: number) {
@@ -154,20 +157,23 @@ export async function deletePostAction(id: number) {
     // Security: Verify user is authenticated
     const session = await auth();
     if (!session?.user) {
-      throw new Error('Unauthorized: You must be signed in to delete posts');
+      return { success: false, error: 'Unauthorized: You must be signed in to delete posts' };
     }
 
     await deletePost(id);
+    revalidatePath('/admin/blog');
     revalidatePath('/blog');
     revalidatePath('/playbooks');
+    
+    return { success: true };
   } catch (error) {
     // Log the actual error server-side
     console.error('[deletePostAction] Error:', error);
-    // Re-throw with more context
-    throw new Error(`Failed to delete post: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
-  
-  redirect('/admin/blog');
 }
 
 export async function submitContactForm(formData: FormData) {
