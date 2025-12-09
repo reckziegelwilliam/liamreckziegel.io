@@ -207,8 +207,14 @@ export default function NewPostPage() {
                   className="w-full px-3 py-2 bg-[#0A0E1A] border border-[#00D9FF]/20 rounded-lg focus:outline-none focus:border-[#00D9FF] text-[#E8E9ED]"
                 >
                   <option value="playbook">Playbook</option>
+                  <option value="tutorial">Tutorial</option>
+                  <option value="case-study">Case Study</option>
+                  <option value="guide">Guide</option>
+                  <option value="deep-dive">Deep Dive</option>
                   <option value="note">Note</option>
                   <option value="update">Update</option>
+                  <option value="review">Review</option>
+                  <option value="opinion">Opinion</option>
                 </select>
               </div>
 
