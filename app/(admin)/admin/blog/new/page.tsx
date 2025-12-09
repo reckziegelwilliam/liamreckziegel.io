@@ -47,12 +47,19 @@ export default function NewPostPage() {
       console.error('Error creating post:', error);
       
       // Check if this is a redirect error (which is actually success in Next.js)
-      if (error?.message?.includes('NEXT_REDIRECT') || error?.digest?.includes('NEXT_REDIRECT')) {
-        // This is actually a successful redirect, ignore the error
+      // In production, check for NEXT_REDIRECT in the digest or error type
+      const isRedirect = 
+        error?.message?.includes('NEXT_REDIRECT') || 
+        error?.digest?.startsWith('NEXT_REDIRECT') ||
+        error?.digest?.includes('NEXT_REDIRECT') ||
+        error?.type === 'redirect';
+      
+      if (isRedirect) {
+        // This is actually a successful redirect, don't show error
         return;
       }
       
-      // Show user-friendly error message
+      // Show user-friendly error message only for actual errors
       const errorMessage = error?.message || 'Failed to create post. Please try again.';
       alert(errorMessage);
       setIsSubmitting(false);
