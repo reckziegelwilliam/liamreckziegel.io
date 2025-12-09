@@ -11,7 +11,13 @@ export const {
     GitHub({
       clientId: process.env.AUTH_GITHUB_ID!,
       clientSecret: process.env.AUTH_GITHUB_SECRET!,
+      authorization: {
+        params: {
+          scope: 'read:user user:email',
+        },
+      },
       profile(profile) {
+        console.log('GitHub profile received:', profile);
         return {
           id: profile.id.toString(),
           name: profile.name || profile.login,
