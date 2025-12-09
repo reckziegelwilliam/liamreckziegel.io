@@ -9,6 +9,8 @@ export const {
 } = NextAuth({
   providers: [
     GitHub({
+      clientId: process.env.AUTH_GITHUB_ID!,
+      clientSecret: process.env.AUTH_GITHUB_SECRET!,
       profile(profile) {
         return {
           id: profile.id.toString(),
@@ -19,9 +21,10 @@ export const {
       },
     }),
   ],
-  debug: true, // Enable debug mode to see what's happening
+  debug: true,
   trustHost: true,
   basePath: '/api/auth',
+  secret: process.env.AUTH_SECRET,
   cookies: {
     sessionToken: {
       name: `__Secure-next-auth.session-token`,
