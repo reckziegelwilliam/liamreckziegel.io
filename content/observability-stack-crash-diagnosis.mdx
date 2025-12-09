@@ -1,7 +1,11 @@
 ---
 title: 'Building an Observability Stack That Cut Crash Diagnosis Time by 40%'
+subtitle: 'Sentry, Grafana, and Prometheus for Production Apps'
+slug: 'observability-stack-crash-diagnosis'
 publishedAt: '2024-12-09'
-summary: 'Implementing production-grade observability with Sentry, Grafana, and Prometheus for a React Native app. Detailed setup, custom metrics, alerting strategies, and lessons on catching bugs before users do.'
+summary: 'Production-grade observability with Sentry, Grafana, and Prometheus. Custom metrics, alerting strategies, and catching bugs before users report them.'
+tags: 'observability, sentry, grafana, prometheus, monitoring, debugging'
+type: 'Playbook'
 ---
 
 ## The Problem: Reactive Debugging
@@ -26,7 +30,37 @@ Operating a React Native app without proper observability meant:
 
 ## The Solution: Comprehensive Observability
 
+<Alert type="success">
+Observability transforms debugging from reactive guesswork to proactive, data-driven decisions. Catching 60% of bugs before users report them dramatically improves user experience and team velocity.
+</Alert>
+
 ### Stack Components
+
+<Comparison 
+  labels={{ before: 'Flying Blind', after: 'Full Observability' }}
+  before={
+    <>
+      <p><strong>Reactive debugging:</strong></p>
+      <ul>
+        <li>Users report crashes days later</li>
+        <li>No context or reproduction steps</li>
+        <li>Hours spent diving through logs</li>
+        <li>Guessing at root causes</li>
+      </ul>
+    </>
+  }
+  after={
+    <>
+      <p><strong>Proactive monitoring:</strong></p>
+      <ul>
+        <li>Real-time crash alerts with stack traces</li>
+        <li>Full context: user actions, device info</li>
+        <li>Performance metrics and trends</li>
+        <li>60% of bugs caught before user reports</li>
+      </ul>
+    </>
+  }
+/>
 
 1. **Sentry**: Error tracking, crash reporting, performance monitoring
 2. **Prometheus**: Time-series metrics collection
@@ -39,6 +73,7 @@ Operating a React Native app without proper observability meant:
 - **Prometheus**: Industry standard for metrics, powerful query language
 - **Grafana**: Combines metrics + logs + traces in one view
 - **Total cost**: <$200/month for early-stage startup
+
 
 <MetricsGrid metrics={[
   { value: '40%', label: 'Faster Diagnosis' },

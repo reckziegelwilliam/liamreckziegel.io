@@ -55,12 +55,15 @@ async function getPostForPreview(slug: string): Promise<Post | null> {
   return result.length > 0 ? (result[0] as any) : null;
 }
 
-function formatDate(date: Date) {
-  return new Date(date).toLocaleDateString('en-US', {
+function formatDate(date: Date | string) {
+  const d = new Date(date);
+  const options: Intl.DateTimeFormatOptions = {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
-  });
+    timeZone: 'UTC'
+  };
+  return d.toLocaleDateString('en-US', options);
 }
 
 export default async function PreviewPostPage({ params }: PageProps) {
@@ -122,7 +125,7 @@ export default async function PreviewPostPage({ params }: PageProps) {
         )}
         
         <div className="flex items-center gap-4 text-sm text-[#9CA3AF] mb-8">
-          <time dateTime={post.created_at.toString()}>
+          <time dateTime={new Date(post.created_at).toISOString()} suppressHydrationWarning>
             {formatDate(post.created_at)}
           </time>
           {post.reading_time_minutes && (

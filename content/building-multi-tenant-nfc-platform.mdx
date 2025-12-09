@@ -1,12 +1,23 @@
 ---
 title: 'Building a Multi-Tenant NFC Platform with AWS Lambda and DynamoDB'
+subtitle: 'Serverless Architecture for Thousands of Concurrent Users'
+slug: 'building-multi-tenant-nfc-platform'
 publishedAt: '2024-12-09'
-summary: 'Architecting a serverless NFC platform for post-purchase product tracking. Deep dive into multi-tenant data isolation, DynamoDB schema design, and scaling to thousands of concurrent users with AWS Lambda and S3.'
+summary: 'Serverless NFC platform for post-purchase tracking. Multi-tenant isolation, DynamoDB schema design, and scaling to thousands of concurrent users.'
+tags: 'aws, lambda, dynamodb, serverless, multi-tenant, architecture'
+type: 'Playbook'
 ---
 
 ## The Problem
 
 Brands need to track how customers interact with physical products after purchase: how often products are used, feature engagement patterns, and warranty claim data. Traditional approaches require managing dedicated infrastructure per brand, which doesn't scale.
+
+<MetricsGrid metrics={[
+  { value: '<200ms', label: 'Response Time' },
+  { value: '15K', label: 'Concurrent Users' },
+  { value: '$0.03', label: 'Per 1K Requests' },
+  { value: '100%', label: 'Uptime' }
+]} />
 
 **Requirements**:
 - Handle NFC tag scans with <200ms response time
@@ -44,7 +55,37 @@ Physical Product (NFC Tag)
 
 ## Technology Decisions
 
+<Alert type="info">
+Serverless architecture is ideal for unpredictable traffic patterns like product launches. You only pay for what you use, and the infrastructure automatically scales to handle traffic spikes without any manual intervention.
+</Alert>
+
 ### Why Serverless?
+
+<Comparison 
+  labels={{ before: 'Traditional EC2', after: 'Serverless Lambda' }}
+  before={
+    <>
+      <p><strong>Manual infrastructure:</strong></p>
+      <ul>
+        <li>Provision servers in advance</li>
+        <li>Pay 24/7 even when idle</li>
+        <li>Manual scaling configuration</li>
+        <li>Patching and maintenance</li>
+      </ul>
+    </>
+  }
+  after={
+    <>
+      <p><strong>Zero server management:</strong></p>
+      <ul>
+        <li>Auto-scales from 0 to thousands</li>
+        <li>Pay per request ($0/month idle)</li>
+        <li>Built-in redundancy</li>
+        <li>No maintenance overhead</li>
+      </ul>
+    </>
+  }
+/>
 
 **Lambda Benefits**:
 - Zero server management

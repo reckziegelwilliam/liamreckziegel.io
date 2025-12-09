@@ -10,7 +10,18 @@ type: 'Playbook'
 
 ## Performance Metrics That Matter
 
+<Alert type="info">
+Core Web Vitals directly impact SEO rankings and user experience. Google uses these metrics to rank search results. Poor performance = lower rankings = fewer users.
+</Alert>
+
 ### Core Web Vitals
+
+<MetricsGrid metrics={[
+  { value: '<2.5s', label: 'LCP Target' },
+  { value: '<100ms', label: 'FID Target' },
+  { value: '<0.1', label: 'CLS Target' },
+  { value: '53%', label: 'Users Lost at 3s' }
+]} />
 
 **LCP (Largest Contentful Paint)**: < 2.5s
 - Measures loading performance
@@ -98,6 +109,32 @@ getTTFB(sendToAnalytics);
 ```
 
 ## Code Splitting & Lazy Loading
+
+<Comparison 
+  labels={{ before: 'All Code Upfront', after: 'Code Splitting' }}
+  before={
+    <>
+      <p><strong>Load everything immediately:</strong></p>
+      <ul>
+        <li>3.2MB initial bundle</li>
+        <li>15 second load on 3G</li>
+        <li>Users wait for unused code</li>
+        <li>Poor TTI and FCP</li>
+      </ul>
+    </>
+  }
+  after={
+    <>
+      <p><strong>Load only what's needed:</strong></p>
+      <ul>
+        <li>180KB initial bundle</li>
+        <li>1.8 second load on 3G</li>
+        <li>Components load on demand</li>
+        <li>Excellent Core Web Vitals</li>
+      </ul>
+    </>
+  }
+/>
 
 ### React.lazy() for Components
 
@@ -730,15 +767,16 @@ jobs:
 - [ ] Preload fonts
 - [ ] Use system fonts when possible
 
-## Key Takeaways
-
-- **Measure first** - Use Lighthouse and Web Vitals
-- **Code splitting** - Don't load what you don't need
-- **Image optimization** - Biggest impact on LCP
-- **Lazy load** - Below-the-fold content
-- **Memoization** - React.memo, useMemo, useCallback
-- **Server components** - Reduce client JS (Next.js)
-- **Monitor continuously** - Performance degrades over time
+<KeyTakeaways items={[
+  'Measure first with Lighthouse and Web Vitals - you can\'t optimize what you don\'t measure',
+  'Code splitting reduces initial bundle from 3.2MB to 180KB (94% reduction)',
+  'Image optimization has the biggest impact on LCP - use Next.js Image component',
+  'Lazy load below-the-fold content - prioritize what users see first',
+  'Memoization (React.memo, useMemo, useCallback) prevents unnecessary re-renders',
+  'Server components reduce client JS by 60% (Next.js App Router)',
+  'Monitor continuously - performance degrades over time without vigilance',
+  'Core Web Vitals impact SEO - poor performance = lower search rankings'
+]} />
 
 Performance is a feature, not a nice-to-have. Users notice the difference.
 
