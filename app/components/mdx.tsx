@@ -358,9 +358,10 @@ function preprocessMDX(content: string): string {
 }
 
 function processNonCodeText(text: string): string {
-  // Escape < followed by numbers or decimal numbers (e.g., <200ms, <2.5s, <100)
-  // But preserve actual JSX components (e.g., <Alert>, <MetricsGrid>)
-  return text.replace(/<(\d+(?:\.\d+)?)/g, '&lt;$1');
+  // Replace < followed by numbers with JSX expression to avoid MDX parsing as tag
+  // This handles patterns like <200ms, <2.5s, <100
+  // But preserves actual JSX components (e.g., <Alert>, <MetricsGrid>)
+  return text.replace(/<(\d+(?:\.\d+)?[a-z]*)/gi, "{'<'}$1");
 }
 
 export function CustomMDX(props) {
