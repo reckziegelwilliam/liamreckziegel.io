@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { submitContactForm } from '@/app/actions/posts';
 import { Briefcase, Users, Loader2, CheckCircle } from 'lucide-react';
 import { PageViewTracker } from '@/app/components/page-view-tracker';
@@ -90,9 +91,18 @@ function ContactForm() {
   return (
     <section className="max-w-4xl mx-auto">
       <PageViewTracker />
-      <h1 className="text-4xl md:text-5xl font-bold mb-6 tracking-tight">
-        Let's Work Together
-      </h1>
+      <div className="flex items-center gap-6 mb-8">
+        <Image
+          src="/pro_headshot.png"
+          alt="Liam Reckziegel"
+          width={80}
+          height={80}
+          className="rounded-full border-2 border-[#00D9FF]/30"
+        />
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+          Let's Work Together
+        </h1>
+      </div>
       <p className="text-lg text-[#9CA3AF] dark:text-[#9CA3AF] mb-12 max-w-2xl">
         Whether you need a founding engineer or want to work with my studio, I'm here to help.
         Fill out the form below and I'll get back to you within 24-48 hours.
@@ -115,20 +125,18 @@ function ContactForm() {
           </p>
         </button>
 
-        <button
-          onClick={() => setType('studio')}
-          className={`p-6 rounded-xl border-2 transition-all text-left ${
-            type === 'studio'
-              ? 'border-[#00D9FF] bg-[#00D9FF]/10'
-              : 'border-[#1A1F35] hover:border-[#00D9FF]/50'
-          }`}
+        <a
+          href="https://www.lumenaut.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-6 rounded-xl border-2 border-[#1A1F35] hover:border-[#00D9FF]/50 transition-all text-left block"
         >
-          <Users className={`w-8 h-8 mb-3 ${type === 'studio' ? 'text-[#00D9FF]' : 'text-[#9CA3AF]'}`} />
+          <Users className="w-8 h-8 mb-3 text-[#9CA3AF]" />
           <h3 className="text-xl font-semibold mb-2">Work with Lumenaut Studio</h3>
           <p className="text-sm text-[#9CA3AF]">
             Project-based or retainer engagement for targeted development work.
           </p>
-        </button>
+        </a>
       </div>
 
       {/* Form */}

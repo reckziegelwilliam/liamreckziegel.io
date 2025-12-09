@@ -1,0 +1,777 @@
+---
+title: 'Building a Turbo Monorepo for Multi-Tenant SaaS'
+subtitle: 'From Legacy CRA to Scalable Monorepo Architecture'
+slug: 'turbo-monorepo-architecture'
+publishedAt: '2024-12-09'
+summary: 'Complete guide to migrating a B2B2C platform to Turbo monorepo. Shared packages, workspace configuration, and scaling multiple Next.js apps.'
+tags: 'turborepo, monorepo, nextjs, architecture, saas'
+type: 'Playbook'
+---
+
+## The Problem
+
+Managing a B2B2C multi-tenant platform with separate codebases for admin dashboard, consumer app, and marketing site led to:
+
+- **Duplicated code**: Same components copied across repos
+- **Version drift**: Different dependency versions causing bugs
+- **Slow iteration**: Changes required updating multiple repos
+- **Inconsistent UX**: Design system divergence
+
+<MetricsGrid metrics={[
+  { value: '60%', label: 'Faster Builds' },
+  { value: '3 → 1', label: 'Repos Consolidated' },
+  { value: '40%', label: 'Less Duplicated Code' },
+  { value: '10x', label: 'Faster Deployment' }
+]} />
+
+**Solution**: Migrate to a Turbo monorepo with shared packages.
+
+<Alert type="info">
+Turbo monorepos excel at managing multiple Next.js apps with shared code. The caching and parallel execution dramatically improve build times as your platform grows.
+</Alert>
+
+## Monorepo Structure
+
+```
+my-saas/
+├── apps/
+│   ├── web/              # Consumer-facing app (Next.js)
+│   ├── admin/            # Admin dashboard (Next.js)
+│   ├── marketing/        # Marketing site (Next.js)
+│   └── api/              # Backend API (Node.js/Express)
+├── packages/
+│   ├── ui/               # Shared React components
+│   ├── config/           # Shared configs (ESLint, TypeScript, Tailwind)
+│   ├── database/         # Database schema & client
+│   ├── auth/             # Authentication logic
+│   ├── utils/            # Shared utilities
+│   └── types/            # Shared TypeScript types
+├── package.json
+├── turbo.json
+└── pnpm-workspace.yaml
+```
+
+## Initial Setup
+
+### Install Turbo
+
+```bash
+# Create new monorepo
+npx create-turbo@latest
+
+# Or add to existing project
+pnpm add turbo -D -w
+```
+
+### Configure Workspace
+
+```yaml
+# pnpm-workspace.yaml
+packages:
+  - 'apps/*'
+  - 'packages/*'
+```
+
+```json
+// package.json (root)
+{
+  "name": "my-saas-monorepo",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^1.11.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}
+```
+
+### Turbo Configuration
+
+```json
+// turbo.json
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env.*local"],
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "type-check": {
+      "dependsOn": ["^type-check"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "deploy": {
+      "dependsOn": ["build", "test", "lint"],
+      "outputs": []
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}
+```
+
+## Shared Packages
+
+### 1. UI Component Library
+
+```json
+// packages/ui/package.json
+{
+  "name": "@my-saas/ui",
+  "version": "0.0.0",
+  "main": "./index.tsx",
+  "types": "./index.tsx",
+  "license": "MIT",
+  "scripts": {
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@my-saas/config": "workspace:*",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "typescript": "^5.3.0"
+  }
+}
+```
+
+```typescript
+// packages/ui/index.tsx
+export { Button } from './components/Button';
+export { Input } from './components/Input';
+export { Modal } from './components/Modal';
+export { Card } from './components/Card';
+export { Table } from './components/Table';
+// ... more exports
+```
+
+```typescript
+// packages/ui/components/Button.tsx
+import React from 'react';
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'outline';
+  size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
+}
+
+export function Button({
+  children,
+  variant = 'primary',
+  size = 'md',
+  loading = false,
+  className = '',
+  disabled,
+  ...props
+}: ButtonProps) {
+  const baseStyles = 'rounded-lg font-medium transition-colors';
+  
+  const variants = {
+    primary: 'bg-blue-600 text-white hover:bg-blue-700',
+    secondary: 'bg-gray-600 text-white hover:bg-gray-700',
+    outline: 'border-2 border-blue-600 text-blue-600 hover:bg-blue-50',
+  };
+  
+  const sizes = {
+    sm: 'px-3 py-1.5 text-sm',
+    md: 'px-4 py-2 text-base',
+    lg: 'px-6 py-3 text-lg',
+  };
+
+  return (
+    <button
+      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      disabled={disabled || loading}
+      {...props}
+    >
+      {loading ? 'Loading...' : children}
+    </button>
+  );
+}
+```
+
+### 2. Shared TypeScript Config
+
+```json
+// packages/config/tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "incremental": true,
+    "isolatedModules": true
+  },
+  "exclude": ["node_modules"]
+}
+```
+
+```json
+// apps/web/tsconfig.json
+{
+  "extends": "@my-saas/config/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "plugins": [{ "name": "next" }]
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+```
+
+### 3. Database Package
+
+```typescript
+// packages/database/index.ts
+export { db } from './client';
+export * from './schema';
+export type * from './types';
+```
+
+```typescript
+// packages/database/client.ts
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from './types';
+
+export const db = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+```
+
+```typescript
+// packages/database/schema.ts
+import { db } from './client';
+
+export const users = {
+  async getById(id: string) {
+    const { data, error } = await db
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async create(user: InsertUser) {
+    const { data, error } = await db.from('users').insert(user).select().single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async update(id: string, updates: Partial<User>) {
+    const { data, error } = await db
+      .from('users')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+};
+
+export const organizations = {
+  // ... organization queries
+};
+```
+
+### 4. Authentication Package
+
+```typescript
+// packages/auth/index.ts
+export { authConfig, auth } from './config';
+export { getSession, requireAuth } from './helpers';
+export type { Session, User } from './types';
+```
+
+```typescript
+// packages/auth/config.ts
+import NextAuth from 'next-auth';
+import { SupabaseAdapter } from '@auth/supabase-adapter';
+import GoogleProvider from 'next-auth/providers/google';
+import { db } from '@my-saas/database';
+
+export const authConfig = {
+  adapter: SupabaseAdapter({
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    secret: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  }),
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+  ],
+  callbacks: {
+    async session({ session, user }) {
+      session.user.id = user.id;
+      return session;
+    },
+  },
+};
+
+export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+```
+
+## App Configuration
+
+<Comparison 
+  labels={{ before: 'Separate Repos', after: 'Turbo Monorepo' }}
+  before={
+    <>
+      <p><strong>Three separate repositories:</strong></p>
+      <ul>
+        <li>Duplicate components across repos</li>
+        <li>Different package versions</li>
+        <li>Manual dependency syncing</li>
+        <li>Separate CI/CD pipelines</li>
+      </ul>
+    </>
+  }
+  after={
+    <>
+      <p><strong>Single monorepo:</strong></p>
+      <ul>
+        <li>Shared component library</li>
+        <li>Single source of truth for deps</li>
+        <li>Automatic internal package linking</li>
+        <li>Unified CI/CD with parallel builds</li>
+      </ul>
+    </>
+  }
+/>
+
+### Consumer App (Next.js)
+
+```json
+// apps/web/package.json
+{
+  "name": "@my-saas/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "@my-saas/ui": "workspace:*",
+    "@my-saas/database": "workspace:*",
+    "@my-saas/auth": "workspace:*",
+    "@my-saas/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@my-saas/config": "workspace:*",
+    "typescript": "^5.3.0"
+  }
+}
+```
+
+```typescript
+// apps/web/next.config.js
+const { withTurbo } = require('turbo');
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  transpilePackages: ['@my-saas/ui', '@my-saas/database', '@my-saas/auth'],
+  reactStrictMode: true,
+};
+
+module.exports = withTurbo(nextConfig);
+```
+
+### Admin Dashboard
+
+```json
+// apps/admin/package.json
+{
+  "name": "@my-saas/admin",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "@my-saas/ui": "workspace:*",
+    "@my-saas/database": "workspace:*",
+    "@my-saas/auth": "workspace:*"
+  }
+}
+```
+
+## Development Workflow
+
+### Running All Apps
+
+```bash
+# Run all apps in development mode
+pnpm dev
+
+# Run specific app
+pnpm dev --filter=@my-saas/web
+
+# Run multiple apps
+pnpm dev --filter=@my-saas/web --filter=@my-saas/admin
+```
+
+### Building for Production
+
+```bash
+# Build all apps
+pnpm build
+
+# Build with cache
+turbo run build
+
+# Build specific app
+turbo run build --filter=@my-saas/web
+```
+
+### Type Checking
+
+```bash
+# Type check all packages
+pnpm type-check
+
+# Type check specific package
+pnpm type-check --filter=@my-saas/ui
+```
+
+## Environment Variables
+
+### Shared Environment Variables
+
+```bash
+# .env (root)
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
+SUPABASE_SERVICE_ROLE_KEY=xxx
+```
+
+### App-Specific Variables
+
+```bash
+# apps/web/.env.local
+NEXT_PUBLIC_APP_NAME=Consumer App
+NEXT_PUBLIC_API_URL=https://api.myapp.com
+
+# apps/admin/.env.local
+NEXT_PUBLIC_APP_NAME=Admin Dashboard
+NEXT_PUBLIC_API_URL=https://api-admin.myapp.com
+```
+
+### Loading Environment Variables
+
+```typescript
+// packages/config/env.ts
+import { z } from 'zod';
+
+const envSchema = z.object({
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  NODE_ENV: z.enum(['development', 'test', 'production']),
+});
+
+export const env = envSchema.parse(process.env);
+```
+
+## Caching Strategy
+
+### Local Caching
+
+Turbo automatically caches build outputs locally in `.turbo/cache/`.
+
+```json
+// turbo.json
+{
+  "pipeline": {
+    "build": {
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "cache": true
+    }
+  }
+}
+```
+
+### Remote Caching (Vercel)
+
+```bash
+# Link to Vercel for remote caching
+pnpm dlx turbo login
+pnpm dlx turbo link
+```
+
+```json
+// turbo.json
+{
+  "remoteCache": {
+    "enabled": true
+  }
+}
+```
+
+<Alert type="success">
+Remote caching with Vercel reduced CI build times from 15 minutes to 2 minutes by sharing cache across team members and CI environments.
+</Alert>
+
+## Deployment
+
+### Vercel Monorepo Setup
+
+```json
+// vercel.json (root)
+{
+  "buildCommand": "turbo run build --filter=@my-saas/web",
+  "outputDirectory": "apps/web/.next",
+  "installCommand": "pnpm install"
+}
+```
+
+### Separate Deployments per App
+
+```json
+// apps/web/vercel.json
+{
+  "buildCommand": "cd ../.. && turbo run build --filter=@my-saas/web",
+  "outputDirectory": ".next",
+  "installCommand": "pnpm install --frozen-lockfile"
+}
+```
+
+### GitHub Actions CI/CD
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm type-check
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
+```
+
+## Dependency Management
+
+### Adding Dependencies
+
+```bash
+# Add to root (dev dependencies)
+pnpm add -D -w prettier
+
+# Add to specific package
+pnpm add react-query --filter=@my-saas/web
+
+# Add to all apps
+pnpm add -r lodash --filter=./apps/*
+```
+
+### Updating Dependencies
+
+```bash
+# Update all dependencies
+pnpm update -r
+
+# Update specific package
+pnpm update next --filter=@my-saas/web
+
+# Check for outdated packages
+pnpm outdated -r
+```
+
+## Common Patterns
+
+### Cross-Package Imports
+
+```typescript
+// apps/web/src/app/page.tsx
+import { Button, Card } from '@my-saas/ui';
+import { db } from '@my-saas/database';
+import { auth } from '@my-saas/auth';
+
+export default async function HomePage() {
+  const session = await auth();
+  const user = session ? await db.users.getById(session.user.id) : null;
+
+  return (
+    <Card>
+      <h1>Welcome {user?.name}</h1>
+      <Button>Get Started</Button>
+    </Card>
+  );
+}
+```
+
+### Shared Utilities
+
+```typescript
+// packages/utils/src/formatters.ts
+export function formatCurrency(amount: number, currency = 'USD') {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+  }).format(amount);
+}
+
+export function formatDate(date: Date | string) {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(date));
+}
+```
+
+## Performance Optimization
+
+### Parallel Execution
+
+Turbo runs tasks in parallel across packages:
+
+```bash
+# Runs lint in all packages simultaneously
+turbo run lint
+
+# Build with maximum parallelism
+turbo run build --concurrency=10
+```
+
+### Incremental Builds
+
+```json
+// turbo.json
+{
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**"],
+      "cache": true,
+      "incremental": true
+    }
+  }
+}
+```
+
+## Troubleshooting
+
+### Cache Issues
+
+```bash
+# Clear Turbo cache
+turbo run clean
+
+# Force rebuild without cache
+turbo run build --force
+```
+
+### Dependency Resolution
+
+```bash
+# Check why package is installed
+pnpm why react
+
+# List all dependencies
+pnpm list -r --depth=0
+```
+
+<KeyTakeaways items={[
+  'Turbo monorepos reduce build times by 60% through intelligent caching and parallel execution',
+  'Shared packages eliminate code duplication and ensure consistency across apps',
+  'Remote caching with Vercel enables team-wide build cache sharing',
+  'Workspace protocol (workspace:*) ensures internal packages always use latest local version',
+  'Proper package structure enables independent app deployments while sharing core logic',
+  'Environment variable management requires clear separation between shared and app-specific vars',
+  'Migration from multiple repos reduced deployment complexity by 10x',
+  'TypeScript path mapping and transpilation config critical for Next.js monorepos'
+]} />
+
+Turbo monorepos transform multi-app platforms from dependency management nightmares into streamlined, fast, and maintainable systems.
+

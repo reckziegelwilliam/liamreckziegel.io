@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { auth } from '@/app/auth';
 
 const navItems = {
@@ -43,23 +44,35 @@ export async function Navbar() {
               );
             })}
           </div>
+          <div className="flex items-center gap-3">
           {hasAdminAccess ? (
-            <Link
-              href="/admin/dashboard"
-              className="transition-all hover:text-neutral-800 dark:hover:text-neutral-200 flex align-middle relative py-1 px-2 text-xs opacity-50 hover:opacity-100"
-              title="Admin Dashboard"
-            >
-              admin
+              <Link
+                href="/admin/dashboard"
+                className="transition-all hover:text-neutral-800 dark:hover:text-neutral-200 flex align-middle relative py-1 px-2 text-xs opacity-50 hover:opacity-100"
+                title="Admin Dashboard"
+              >
+                admin
+              </Link>
+            ) : (
+              <Link
+                href="/api/auth/signin?callbackUrl=/admin/dashboard"
+                className="transition-all hover:text-neutral-800 dark:hover:text-neutral-200 flex align-middle relative py-1 px-2 text-xs opacity-30 hover:opacity-100"
+                title="Admin Login"
+              >
+                •
+              </Link>
+            )}
+            <Link href="/">
+              <Image
+                src="/pro_headshot.png"
+                alt="Liam Reckziegel"
+                width={32}
+                height={32}
+                className="rounded-full border border-[#00D9FF]/20 hover:border-[#00D9FF]/50 transition-all"
+              />
             </Link>
-          ) : (
-            <Link
-              href="/api/auth/signin?callbackUrl=/admin/dashboard"
-              className="transition-all hover:text-neutral-800 dark:hover:text-neutral-200 flex align-middle relative py-1 px-2 text-xs opacity-30 hover:opacity-100"
-              title="Admin Login"
-            >
-              •
-            </Link>
-          )}
+
+          </div>
         </nav>
       </div>
     </aside>

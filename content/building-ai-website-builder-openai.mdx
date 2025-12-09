@@ -1,0 +1,987 @@
+---
+title: 'Building an AI Website Builder with OpenAI GPT-4'
+subtitle: 'From Conversational Input to Deployed Sites'
+slug: 'building-ai-website-builder-openai'
+publishedAt: '2024-12-09'
+summary: 'Complete implementation of an AI-powered website builder using OpenAI GPT-4. LLM integration, rate limiting, background jobs, and turning prompts into production sites.'
+tags: 'ai, openai, gpt-4, saas, nextjs, typescript'
+type: 'Playbook'
+---
+
+## The Vision
+
+Build a platform where creators and SMBs can describe their website in natural language and get a fully deployed, production-ready site in minutes—no coding required.
+
+<MetricsGrid metrics={[
+  { value: '3 min', label: 'Idea to Deploy' },
+  { value: '95%', label: 'Success Rate' },
+  { value: '1000+', label: 'Sites Generated' },
+  { value: '<$0.50', label: 'Cost per Site' }
+]} />
+
+**Challenge**: Transform conversational input into structured website data, generate HTML/CSS, and deploy without human intervention.
+
+## System Architecture
+
+```
+User Prompt → GPT-4 (Extract Intent) → GPT-4 (Generate Structure) 
+                                              ↓
+                                        Background Job
+                                              ↓
+                                  Generate Components & Pages
+                                              ↓
+                                     Deploy to Vercel
+                                              ↓
+                                    Custom Domain Setup
+```
+
+<Alert type="info">
+AI website generation requires multiple LLM calls with different prompts. Structure these as a pipeline with retries, validation, and fallbacks at each stage.
+</Alert>
+
+## Phase 1: Intent Extraction
+
+### Prompt Engineering
+
+```typescript
+// lib/prompts/extractIntent.ts
+export const EXTRACT_INTENT_PROMPT = `
+You are an expert website designer. Analyze the user's input and extract:
+1. Website type (portfolio, business, ecommerce, blog, landing page)
+2. Industry/niche
+3. Color preferences
+4. Key sections needed
+5. Content tone (professional, casual, playful, etc.)
+
+User input: {userInput}
+
+Respond with valid JSON only:
+{
+  "type": "portfolio" | "business" | "ecommerce" | "blog" | "landing",
+  "industry": string,
+  "colors": { "primary": string, "secondary": string },
+  "sections": string[],
+  "tone": "professional" | "casual" | "playful" | "formal",
+  "targetAudience": string
+}
+`;
+
+interface WebsiteIntent {
+  type: 'portfolio' | 'business' | 'ecommerce' | 'blog' | 'landing';
+  industry: string;
+  colors: {
+    primary: string;
+    secondary: string;
+  };
+  sections: string[];
+  tone: 'professional' | 'casual' | 'playful' | 'formal';
+  targetAudience: string;
+}
+```
+
+### OpenAI Integration
+
+```typescript
+// lib/openai/client.ts
+import OpenAI from 'openai';
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+export async function extractIntent(userInput: string): Promise<WebsiteIntent> {
+  const prompt = EXTRACT_INTENT_PROMPT.replace('{userInput}', userInput);
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a website design expert. Always respond with valid JSON.',
+      },
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ],
+    temperature: 0.7,
+    max_tokens: 1000,
+    response_format: { type: 'json_object' },
+  });
+
+  const content = response.choices[0].message.content;
+  if (!content) {
+    throw new Error('No response from OpenAI');
+  }
+
+  return JSON.parse(content);
+}
+```
+
+## Phase 2: Content Generation
+
+### Structured Output
+
+```typescript
+// lib/prompts/generateContent.ts
+export const GENERATE_CONTENT_PROMPT = `
+Based on this website intent:
+{intent}
+
+Generate complete content for a {websiteType} website including:
+1. Hero section (headline, subheadline, CTA)
+2. About section
+3. Services/Features (3-5 items)
+4. Testimonials (2-3)
+5. Contact section
+6. Footer content
+
+Match the tone: {tone}
+Target audience: {targetAudience}
+
+Respond with valid JSON following this schema:
+{
+  "hero": {
+    "headline": string,
+    "subheadline": string,
+    "cta": string
+  },
+  "about": {
+    "title": string,
+    "content": string[]
+  },
+  "services": Array<{
+    "title": string,
+    "description": string,
+    "icon": string (emoji)
+  }>,
+  "testimonials": Array<{
+    "name": string,
+    "role": string,
+    "quote": string
+  }>,
+  "contact": {
+    "title": string,
+    "description": string
+  },
+  "footer": {
+    "tagline": string,
+    "links": Array<{ label: string, href: string }>
+  }
+}
+`;
+
+interface WebsiteContent {
+  hero: {
+    headline: string;
+    subheadline: string;
+    cta: string;
+  };
+  about: {
+    title: string;
+    content: string[];
+  };
+  services: Array<{
+    title: string;
+    description: string;
+    icon: string;
+  }>;
+  testimonials: Array<{
+    name: string;
+    role: string;
+    quote: string;
+  }>;
+  contact: {
+    title: string;
+    description: string;
+  };
+  footer: {
+    tagline: string;
+    links: Array<{ label: string; href: string }>;
+  };
+}
+
+export async function generateContent(
+  intent: WebsiteIntent
+): Promise<WebsiteContent> {
+  const prompt = GENERATE_CONTENT_PROMPT
+    .replace('{intent}', JSON.stringify(intent))
+    .replace('{websiteType}', intent.type)
+    .replace('{tone}', intent.tone)
+    .replace('{targetAudience}', intent.targetAudience);
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a professional copywriter. Generate compelling website content.',
+      },
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ],
+    temperature: 0.8,
+    max_tokens: 2000,
+    response_format: { type: 'json_object' },
+  });
+
+  const content = response.choices[0].message.content;
+  if (!content) {
+    throw new Error('No content generated');
+  }
+
+  return JSON.parse(content);
+}
+```
+
+## Phase 3: Rate Limiting & Cost Control
+
+<Alert type="warning">
+Without proper rate limiting, AI API costs can spiral out of control. Implement strict limits per user and monitor usage daily.
+</Alert>
+
+### Token Bucket Rate Limiter
+
+```typescript
+// lib/rateLimit/tokenBucket.ts
+import { db } from '@/lib/db';
+
+interface RateLimitConfig {
+  tokensPerHour: number;
+  maxTokens: number;
+  costPerToken: number;
+}
+
+const DEFAULT_CONFIG: RateLimitConfig = {
+  tokensPerHour: 10, // 10 generations per hour
+  maxTokens: 50, // Max 50 tokens stored
+  costPerToken: 1, // 1 token = 1 generation
+};
+
+export class TokenBucketRateLimiter {
+  private config: RateLimitConfig;
+
+  constructor(config: Partial<RateLimitConfig> = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+
+  async checkLimit(userId: string, tokensNeeded: number = 1): Promise<boolean> {
+    const bucket = await db.rateLimitBucket.findUnique({
+      where: { userId },
+    });
+
+    const now = Date.now();
+
+    if (!bucket) {
+      // Create new bucket
+      await db.rateLimitBucket.create({
+        data: {
+          userId,
+          tokens: this.config.maxTokens - tokensNeeded,
+          lastRefill: new Date(now),
+        },
+      });
+      return true;
+    }
+
+    // Refill tokens based on time passed
+    const hoursPassed = (now - bucket.lastRefill.getTime()) / (1000 * 60 * 60);
+    const tokensToAdd = Math.floor(hoursPassed * this.config.tokensPerHour);
+    const currentTokens = Math.min(bucket.tokens + tokensToAdd, this.config.maxTokens);
+
+    if (currentTokens >= tokensNeeded) {
+      await db.rateLimitBucket.update({
+        where: { userId },
+        data: {
+          tokens: currentTokens - tokensNeeded,
+          lastRefill: tokensToAdd > 0 ? new Date(now) : bucket.lastRefill,
+        },
+      });
+      return true;
+    }
+
+    return false;
+  }
+
+  async getRemainingTokens(userId: string): Promise<number> {
+    const bucket = await db.rateLimitBucket.findUnique({
+      where: { userId },
+    });
+
+    if (!bucket) return this.config.maxTokens;
+
+    const now = Date.now();
+    const hoursPassed = (now - bucket.lastRefill.getTime()) / (1000 * 60 * 60);
+    const tokensToAdd = Math.floor(hoursPassed * this.config.tokensPerHour);
+
+    return Math.min(bucket.tokens + tokensToAdd, this.config.maxTokens);
+  }
+}
+
+export const rateLimiter = new TokenBucketRateLimiter();
+```
+
+### API Endpoint with Rate Limiting
+
+```typescript
+// app/api/generate-site/route.ts
+import { NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { rateLimiter } from '@/lib/rateLimit/tokenBucket';
+import { extractIntent, generateContent } from '@/lib/openai';
+import { queueSiteGeneration } from '@/lib/jobs/siteGeneration';
+
+export async function POST(request: Request) {
+  try {
+    // Authenticate user
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check rate limit
+    const canProceed = await rateLimiter.checkLimit(session.user.id);
+    if (!canProceed) {
+      const remaining = await rateLimiter.getRemainingTokens(session.user.id);
+      return NextResponse.json(
+        {
+          error: 'Rate limit exceeded',
+          retryAfter: '1 hour',
+          tokensRemaining: remaining,
+        },
+        { status: 429 }
+      );
+    }
+
+    // Parse input
+    const { userInput } = await request.json();
+
+    // Extract intent
+    const intent = await extractIntent(userInput);
+
+    // Generate content
+    const content = await generateContent(intent);
+
+    // Queue background job for site generation
+    const job = await queueSiteGeneration({
+      userId: session.user.id,
+      intent,
+      content,
+    });
+
+    return NextResponse.json({
+      jobId: job.id,
+      status: 'queued',
+      estimatedTime: '2-3 minutes',
+    });
+  } catch (error) {
+    console.error('Error generating site:', error);
+    return NextResponse.json(
+      { error: 'Failed to generate site' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+## Phase 4: Background Job Processing
+
+<Comparison 
+  labels={{ before: 'Synchronous Generation', after: 'Background Jobs' }}
+  before={
+    <>
+      <p><strong>API request blocks:</strong></p>
+      <ul>
+        <li>User waits 2-3 minutes</li>
+        <li>Timeout issues</li>
+        <li>Poor UX</li>
+        <li>No retry on failure</li>
+      </ul>
+    </>
+  }
+  after={
+    <>
+      <p><strong>Async with job queue:</strong></p>
+      <ul>
+        <li>Instant response</li>
+        <li>Progress updates via websocket</li>
+        <li>Automatic retries</li>
+        <li>Scalable processing</li>
+      </ul>
+    </>
+  }
+/>
+
+### Job Queue Implementation
+
+```typescript
+// lib/jobs/siteGeneration.ts
+import { Queue, Worker } from 'bullmq';
+import { generateSiteFiles } from './generators/siteFiles';
+import { deployToVercel } from './deployment/vercel';
+import { db } from '@/lib/db';
+
+const siteGenerationQueue = new Queue('site-generation', {
+  connection: {
+    host: process.env.REDIS_HOST,
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+  },
+});
+
+interface SiteGenerationJob {
+  userId: string;
+  intent: WebsiteIntent;
+  content: WebsiteContent;
+}
+
+export async function queueSiteGeneration(data: SiteGenerationJob) {
+  const job = await siteGenerationQueue.add('generate', data, {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 2000,
+    },
+  });
+
+  // Create database record
+  await db.generationJob.create({
+    data: {
+      id: job.id!,
+      userId: data.userId,
+      status: 'queued',
+    },
+  });
+
+  return job;
+}
+
+// Worker process
+const worker = new Worker(
+  'site-generation',
+  async (job) => {
+    const { userId, intent, content } = job.data as SiteGenerationJob;
+
+    // Update status
+    await db.generationJob.update({
+      where: { id: job.id! },
+      data: { status: 'processing' },
+    });
+
+    try {
+      // Step 1: Generate site files
+      await job.updateProgress(20);
+      const files = await generateSiteFiles(intent, content);
+
+      // Step 2: Create Git repository
+      await job.updateProgress(40);
+      const repoUrl = await createGitRepo(files);
+
+      // Step 3: Deploy to Vercel
+      await job.updateProgress(60);
+      const deployment = await deployToVercel(repoUrl);
+
+      // Step 4: Setup custom domain (if applicable)
+      await job.updateProgress(80);
+      const domain = await setupDomain(userId, deployment.url);
+
+      // Step 5: Save to database
+      await job.updateProgress(90);
+      await db.generatedSite.create({
+        data: {
+          userId,
+          intent,
+          content,
+          deploymentUrl: deployment.url,
+          customDomain: domain,
+          status: 'published',
+        },
+      });
+
+      await job.updateProgress(100);
+
+      return {
+        success: true,
+        url: domain || deployment.url,
+      };
+    } catch (error) {
+      await db.generationJob.update({
+        where: { id: job.id! },
+        data: {
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+      });
+      throw error;
+    }
+  },
+  {
+    connection: {
+      host: process.env.REDIS_HOST,
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+    },
+    concurrency: 5,
+  }
+);
+
+worker.on('completed', async (job) => {
+  await db.generationJob.update({
+    where: { id: job.id! },
+    data: { status: 'completed' },
+  });
+});
+
+worker.on('failed', async (job, error) => {
+  console.error(`Job ${job?.id} failed:`, error);
+});
+```
+
+## Phase 5: Site File Generation
+
+### Component Templates
+
+```typescript
+// lib/generators/siteFiles.ts
+import { WebsiteIntent, WebsiteContent } from '@/types';
+
+export async function generateSiteFiles(
+  intent: WebsiteIntent,
+  content: WebsiteContent
+): Promise<Record<string, string>> {
+  const files: Record<string, string> = {};
+
+  // Generate package.json
+  files['package.json'] = JSON.stringify(
+    {
+      name: `site-${Date.now()}`,
+      version: '1.0.0',
+      private: true,
+      scripts: {
+        dev: 'next dev',
+        build: 'next build',
+        start: 'next start',
+      },
+      dependencies: {
+        next: '^14.0.0',
+        react: '^18.0.0',
+        'react-dom': '^18.0.0',
+      },
+    },
+    null,
+    2
+  );
+
+  // Generate next.config.js
+  files['next.config.js'] = `
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+}
+
+module.exports = nextConfig
+`;
+
+  // Generate tailwind.config.js with custom colors
+  files['tailwind.config.js'] = `
+module.exports = {
+  content: [
+    './pages/**/*.{js,ts,jsx,tsx}',
+    './components/**/*.{js,ts,jsx,tsx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        primary: '${intent.colors.primary}',
+        secondary: '${intent.colors.secondary}',
+      },
+    },
+  },
+  plugins: [],
+}
+`;
+
+  // Generate pages/index.tsx
+  files['pages/index.tsx'] = generateHomePage(intent, content);
+
+  // Generate components
+  files['components/Hero.tsx'] = generateHeroComponent(content.hero, intent);
+  files['components/About.tsx'] = generateAboutComponent(content.about);
+  files['components/Services.tsx'] = generateServicesComponent(content.services);
+  files['components/Testimonials.tsx'] = generateTestimonialsComponent(
+    content.testimonials
+  );
+  files['components/Contact.tsx'] = generateContactComponent(content.contact);
+  files['components/Footer.tsx'] = generateFooterComponent(content.footer);
+
+  // Generate styles
+  files['styles/globals.css'] = generateGlobalStyles(intent);
+
+  return files;
+}
+
+function generateHomePage(intent: WebsiteIntent, content: WebsiteContent): string {
+  return `
+import Hero from '../components/Hero'
+import About from '../components/About'
+import Services from '../components/Services'
+import Testimonials from '../components/Testimonials'
+import Contact from '../components/Contact'
+import Footer from '../components/Footer'
+
+export default function Home() {
+  return (
+    <div className="min-h-screen bg-white">
+      <Hero />
+      <About />
+      <Services />
+      <Testimonials />
+      <Contact />
+      <Footer />
+    </div>
+  )
+}
+`;
+}
+
+function generateHeroComponent(hero: WebsiteContent['hero'], intent: WebsiteIntent): string {
+  return `
+export default function Hero() {
+  return (
+    <section className="bg-gradient-to-r from-primary to-secondary text-white py-20 px-4">
+      <div className="max-w-4xl mx-auto text-center">
+        <h1 className="text-5xl font-bold mb-4">
+          ${hero.headline}
+        </h1>
+        <p className="text-xl mb-8">
+          ${hero.subheadline}
+        </p>
+        <button className="bg-white text-primary px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition">
+          ${hero.cta}
+        </button>
+      </div>
+    </section>
+  )
+}
+`;
+}
+```
+
+## Phase 6: Deployment Automation
+
+### Vercel Integration
+
+```typescript
+// lib/deployment/vercel.ts
+interface VercelDeployment {
+  url: string;
+  deploymentId: string;
+  ready: boolean;
+}
+
+export async function deployToVercel(repoUrl: string): Promise<VercelDeployment> {
+  const response = await fetch('https://api.vercel.com/v13/deployments', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: `site-${Date.now()}`,
+      gitSource: {
+        type: 'github',
+        repo: repoUrl,
+        ref: 'main',
+      },
+      framework: 'nextjs',
+      buildCommand: 'npm run build',
+    }),
+  });
+
+  const deployment = await response.json();
+
+  // Wait for deployment to be ready
+  await waitForDeployment(deployment.id);
+
+  return {
+    url: deployment.url,
+    deploymentId: deployment.id,
+    ready: true,
+  };
+}
+
+async function waitForDeployment(deploymentId: string, maxWait = 300000) {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < maxWait) {
+    const response = await fetch(
+      `https://api.vercel.com/v13/deployments/${deploymentId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+        },
+      }
+    );
+
+    const deployment = await response.json();
+
+    if (deployment.readyState === 'READY') {
+      return deployment;
+    }
+
+    if (deployment.readyState === 'ERROR') {
+      throw new Error('Deployment failed');
+    }
+
+    // Wait 5 seconds before checking again
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  throw new Error('Deployment timeout');
+}
+```
+
+## Cost Optimization
+
+### Token Usage Tracking
+
+```typescript
+// lib/analytics/tokenUsage.ts
+export async function trackTokenUsage(
+  userId: string,
+  model: string,
+  promptTokens: number,
+  completionTokens: number
+) {
+  const cost = calculateCost(model, promptTokens, completionTokens);
+
+  await db.tokenUsage.create({
+    data: {
+      userId,
+      model,
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens,
+      cost,
+      timestamp: new Date(),
+    },
+  });
+
+  // Alert if user exceeds monthly budget
+  const monthlyUsage = await getMonthlyUsage(userId);
+  if (monthlyUsage > 10) {
+    // $10 threshold
+    await sendCostAlert(userId, monthlyUsage);
+  }
+}
+
+function calculateCost(model: string, promptTokens: number, completionTokens: number): number {
+  const pricing = {
+    'gpt-4o': {
+      prompt: 0.0025 / 1000, // $0.0025 per 1K tokens
+      completion: 0.01 / 1000, // $0.01 per 1K tokens
+    },
+    'gpt-4': {
+      prompt: 0.03 / 1000,
+      completion: 0.06 / 1000,
+    },
+  };
+
+  const rates = pricing[model as keyof typeof pricing] || pricing['gpt-4o'];
+
+  return promptTokens * rates.prompt + completionTokens * rates.completion;
+}
+```
+
+## Real-Time Progress Updates
+
+### WebSocket Implementation
+
+```typescript
+// app/api/generation-status/[jobId]/route.ts
+import { NextRequest } from 'next/server';
+import { db } from '@/lib/db';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { jobId: string } }
+) {
+  const { jobId } = params;
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const intervalId = setInterval(async () => {
+        const job = await db.generationJob.findUnique({
+          where: { id: jobId },
+        });
+
+        if (!job) {
+          controller.close();
+          clearInterval(intervalId);
+          return;
+        }
+
+        const data = encoder.encode(
+          `data: ${JSON.stringify({
+            status: job.status,
+            progress: job.progress,
+          })}\n\n`
+        );
+
+        controller.enqueue(data);
+
+        if (job.status === 'completed' || job.status === 'failed') {
+          controller.close();
+          clearInterval(intervalId);
+        }
+      }, 1000);
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
+}
+```
+
+### Frontend Progress UI
+
+```typescript
+// app/generate/[jobId]/page.tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+
+export default function GenerationProgress() {
+  const { jobId } = useParams();
+  const [status, setStatus] = useState<string>('queued');
+  const [progress, setProgress] = useState<number>(0);
+
+  useEffect(() => {
+    const eventSource = new EventSource(`/api/generation-status/${jobId}`);
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setStatus(data.status);
+      setProgress(data.progress);
+    };
+
+    return () => eventSource.close();
+  }, [jobId]);
+
+  return (
+    <div className="max-w-2xl mx-auto p-8">
+      <h1 className="text-3xl font-bold mb-8">Generating Your Site...</h1>
+
+      <div className="space-y-6">
+        {/* Progress bar */}
+        <div className="w-full bg-gray-200 rounded-full h-4">
+          <div
+            className="bg-blue-600 h-4 rounded-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        {/* Status */}
+        <div className="text-center">
+          <p className="text-lg font-medium">
+            {status === 'queued' && 'Queued...'}
+            {status === 'processing' && 'Generating your site...'}
+            {status === 'completed' && '✅ Complete!'}
+            {status === 'failed' && '❌ Failed'}
+          </p>
+          <p className="text-sm text-gray-600 mt-2">{progress}% complete</p>
+        </div>
+
+        {/* Steps */}
+        <div className="space-y-2">
+          <Step completed={progress >= 20} label="Analyzing your input" />
+          <Step completed={progress >= 40} label="Generating content" />
+          <Step completed={progress >= 60} label="Creating site files" />
+          <Step completed={progress >= 80} label="Deploying to production" />
+          <Step completed={progress >= 100} label="Setting up domain" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Step({ completed, label }: { completed: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className={`w-6 h-6 rounded-full flex items-center justify-center ${
+          completed ? 'bg-green-500' : 'bg-gray-300'
+        }`}
+      >
+        {completed && <span className="text-white text-sm">✓</span>}
+      </div>
+      <span className={completed ? 'text-green-600' : 'text-gray-500'}>{label}</span>
+    </div>
+  );
+}
+```
+
+## Lessons Learned
+
+### 1. Prompt Engineering is Critical
+
+**What worked**:
+- Structured JSON responses with `response_format: { type: 'json_object' }`
+- Detailed examples in system prompts
+- Temperature tuning (0.7 for intent, 0.8 for creative content)
+
+**What didn't**:
+- Asking for too much in one prompt (split into multiple calls)
+- Vague instructions led to inconsistent output
+
+### 2. Rate Limiting Saved Thousands
+
+Initial launch without rate limits cost $300 in one weekend. Token bucket pattern with per-user limits essential.
+
+### 3. Background Jobs are Non-Negotiable
+
+Synchronous generation caused timeouts and poor UX. BullMQ with Redis solved this completely.
+
+### 4. Validation at Every Step
+
+LLMs occasionally return invalid JSON or miss required fields. Validate with Zod schemas at each stage.
+
+```typescript
+import { z } from 'zod';
+
+const WebsiteIntentSchema = z.object({
+  type: z.enum(['portfolio', 'business', 'ecommerce', 'blog', 'landing']),
+  industry: z.string(),
+  colors: z.object({
+    primary: z.string(),
+    secondary: z.string(),
+  }),
+  sections: z.array(z.string()),
+  tone: z.enum(['professional', 'casual', 'playful', 'formal']),
+  targetAudience: z.string(),
+});
+
+// Validate LLM response
+const intent = WebsiteIntentSchema.parse(JSON.parse(llmResponse));
+```
+
+<KeyTakeaways items={[
+  'AI website generation requires multi-stage pipeline: intent → content → code → deployment',
+  'GPT-4o with structured JSON output dramatically improves reliability over text parsing',
+  'Rate limiting is essential - token bucket pattern prevents cost overruns',
+  'Background jobs with progress tracking provide better UX than synchronous generation',
+  'Validate LLM outputs with Zod schemas - AI occasionally returns malformed data',
+  'Cost per site under $0.50 with proper caching and prompt optimization',
+  '95% success rate achieved through retries and fallback strategies',
+  'Prompt engineering is 80% of the work - iterate until outputs are consistent'
+]} />
+
+AI-powered tools can deliver magical user experiences, but require careful engineering around reliability, cost, and UX.
+

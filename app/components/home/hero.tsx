@@ -29,7 +29,7 @@ export function Hero() {
           <CTAButton href="/contact?type=hire" variant="primary">
             Hire Me as a Founding Engineer
           </CTAButton>
-          <CTAButton href="/contact?type=studio" variant="secondary">
+          <CTAButton href="https://www.lumenaut.app" variant="secondary">
             Work with Lumenaut Studio
           </CTAButton>
         </div>
