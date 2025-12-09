@@ -327,10 +327,49 @@ let components = {
   CodeBlock,
 };
 
+// Preprocess MDX content to escape problematic characters
+function preprocessMDX(content: string): string {
+  // Don't process if content is empty
+  if (!content) return content;
+  
+  // Escape < followed by numbers in non-code contexts
+  // This regex finds < followed by a digit that's not inside code blocks or JSX components
+  let processed = content;
+  
+  // Split by code blocks to avoid processing code
+  const codeBlockRegex = /(```[\s\S]*?```|`[^`]+`)/g;
+  const parts: string[] = [];
+  let lastIndex = 0;
+  let match;
+  
+  while ((match = codeBlockRegex.exec(content)) !== null) {
+    // Process text before code block
+    const textBefore = content.slice(lastIndex, match.index);
+    parts.push(processNonCodeText(textBefore));
+    // Keep code block as-is
+    parts.push(match[0]);
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Process remaining text
+  parts.push(processNonCodeText(content.slice(lastIndex)));
+  
+  return parts.join('');
+}
+
+function processNonCodeText(text: string): string {
+  // Escape < followed by numbers or decimal numbers (e.g., <200ms, <2.5s, <100)
+  // But preserve actual JSX components (e.g., <Alert>, <MetricsGrid>)
+  return text.replace(/<(\d+(?:\.\d+)?)/g, '&lt;$1');
+}
+
 export function CustomMDX(props) {
+  const processedSource = preprocessMDX(props.source);
+  
   return (
     <MDXRemote
       {...props}
+      source={processedSource}
       components={{ ...components, ...(props.components || {}) }}
     />
   );
