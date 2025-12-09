@@ -5,14 +5,18 @@ import { sql } from '@/app/db/postgres';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
+// Force dynamic rendering for preview page
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata = {
   title: 'Preview Post',
 };
 
 interface PageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 interface Post {
@@ -67,7 +71,15 @@ function formatDate(date: Date | string) {
 }
 
 export default async function PreviewPostPage({ params }: PageProps) {
-  const post = await getPostForPreview(params.slug);
+  const { slug } = await params;
+  let post;
+  
+  try {
+    post = await getPostForPreview(slug);
+  } catch (error) {
+    console.error('Error fetching post for preview:', error);
+    throw error;
+  }
   
   if (!post) {
     notFound();
