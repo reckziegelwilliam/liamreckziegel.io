@@ -43,7 +43,7 @@ const ContentSecurityPolicy = `
     connect-src *;
     font-src 'self' data:;
     frame-src 'self' *.codesandbox.io vercel.live https://github.com;
-    form-action 'self' https://liamrex.io https://github.com;
+    form-action 'self' https://liamrex.io https://github.com https://accounts.google.com;
 `;
 
 const securityHeaders = [
