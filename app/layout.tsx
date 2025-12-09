@@ -4,7 +4,7 @@ import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-import { SandpackCSS } from './blog/[slug]/sandpack';
+import { SandpackCSS } from './(site)/blog/[slug]/sandpack';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://liamrex.io'),
@@ -62,9 +62,9 @@ export default function RootLayout({
         <SandpackCSS />
       </head>
       <body className="antialiased">
-        {children}
-        <Analytics />
-        <SpeedInsights />
+          {children}
+          <Analytics />
+          <SpeedInsights />
       </body>
     </html>
   );
