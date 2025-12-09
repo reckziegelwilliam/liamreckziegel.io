@@ -14,6 +14,7 @@ interface MarkdownEditorProps {
 export function MarkdownEditor({ value, onChange, placeholder, storageKey = 'draft-content' }: MarkdownEditorProps) {
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
   const [mounted, setMounted] = useState(false);
+  const [mdxWarning, setMdxWarning] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -28,6 +29,12 @@ export function MarkdownEditor({ value, onChange, placeholder, storageKey = 'dra
 
     return () => clearInterval(interval);
   }, [value, storageKey]);
+
+  // Check for problematic < followed by numbers pattern
+  useEffect(() => {
+    const hasProblematicPattern = /<\d/.test(value);
+    setMdxWarning(hasProblematicPattern);
+  }, [value]);
 
   const wordCount = value.trim().split(/\s+/).filter(Boolean).length;
   const charCount = value.length;
@@ -89,12 +96,22 @@ export function MarkdownEditor({ value, onChange, placeholder, storageKey = 'dra
       </div>
 
       {/* Helper text */}
-      <div className="px-4 py-2 bg-[#0A0E1A] dark:bg-[#0A0E1A] border-t border-[#1A1F35] text-xs text-[#9CA3AF]">
-        Markdown supported. Use **bold**, *italic*, `code`, # headings, etc.
-        {mounted && localStorage.getItem(`${storageKey}-timestamp`) && (
-          <span className="ml-4">
-            Last auto-saved: {new Date(localStorage.getItem(`${storageKey}-timestamp`)!).toLocaleTimeString()}
-          </span>
+      <div className="px-4 py-2 bg-[#0A0E1A] dark:bg-[#0A0E1A] border-t border-[#1A1F35] text-xs">
+        <div className="text-[#9CA3AF]">
+          Markdown supported. Use **bold**, *italic*, `code`, # headings, etc.
+          {mounted && localStorage.getItem(`${storageKey}-timestamp`) && (
+            <span className="ml-4">
+              Last auto-saved: {new Date(localStorage.getItem(`${storageKey}-timestamp`)!).toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+        {mdxWarning && (
+          <div className="mt-2 text-[#FFB84D] flex items-start gap-2">
+            <span>⚠️</span>
+            <span>
+              Detected &lt; followed by numbers (e.g. &lt;200ms). Wrap in backticks like `&lt;200ms` to prevent MDX errors.
+            </span>
+          </div>
         )}
       </div>
     </div>
