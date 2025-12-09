@@ -34,10 +34,6 @@ export const {
   trustHost: true,
   basePath: '/api/auth',
   secret: process.env.AUTH_SECRET,
-  pages: {
-    signIn: '/',
-    error: '/?error=unauthorized',
-  },
   cookies: {
     sessionToken: {
       name: `__Secure-next-auth.session-token`,
@@ -56,7 +52,7 @@ export const {
       
       if (!allowedEmail) {
         console.error('ALLOWED_EMAIL environment variable is not set');
-        return false;
+        return '/?error=unauthorized';
       }
       
       // Check email from user object or profile
@@ -67,7 +63,8 @@ export const {
       }
       
       console.log(`Access denied for email: ${email}`);
-      return false;
+      // Redirect to homepage with error parameter
+      return '/?error=unauthorized';
     },
     async jwt({ token, account, profile }) {
       // On first sign in, fetch user data
