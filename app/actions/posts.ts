@@ -12,128 +12,161 @@ import { createContactSubmission } from '@/app/db/contact';
 import { auth } from '@/app/auth';
 
 export async function createPostAction(formData: FormData) {
-  // Security: Verify user is authenticated
-  const session = await auth();
-  if (!session?.user) {
-    throw new Error('Unauthorized: You must be signed in to create posts');
-  }
-  const title = formData.get('title') as string;
-  const subtitle = formData.get('subtitle') as string;
-  const summary = formData.get('summary') as string;
-  const content = formData.get('content') as string;
-  const type = formData.get('type') as string;
-  const coverImageUrl = formData.get('cover_image_url') as string;
-  const status = formData.get('status') as 'draft' | 'published';
-  const tagsString = formData.get('tags') as string;
-  let slug = formData.get('slug') as string;
+  try {
+    // Security: Verify user is authenticated
+    const session = await auth();
+    if (!session?.user) {
+      throw new Error('Unauthorized: You must be signed in to create posts');
+    }
+    
+    const title = formData.get('title') as string;
+    const subtitle = formData.get('subtitle') as string;
+    const summary = formData.get('summary') as string;
+    const content = formData.get('content') as string;
+    const type = formData.get('type') as string;
+    const coverImageUrl = formData.get('cover_image_url') as string;
+    const status = formData.get('status') as 'draft' | 'published';
+    const tagsString = formData.get('tags') as string;
+    let slug = formData.get('slug') as string;
 
-  // Generate slug from title if not provided
-  if (!slug || slug.trim() === '') {
-    slug = generateSlug(title);
-  }
+    // Validate required fields
+    if (!title || !content) {
+      throw new Error('Title and content are required');
+    }
 
-  // Calculate reading time
-  const readingTime = calculateReadingTime(content);
+    // Generate slug from title if not provided
+    if (!slug || slug.trim() === '') {
+      slug = generateSlug(title);
+    }
 
-  // Parse tags
-  const tags = tagsString
-    ? tagsString.split(',').map((t) => t.trim()).filter(Boolean)
-    : [];
+    // Calculate reading time
+    const readingTime = calculateReadingTime(content);
 
-  await createPost({
-    slug,
-    title,
-    subtitle,
-    summary,
-    content,
-    type,
-    cover_image_url: coverImageUrl,
-    status,
-    reading_time_minutes: readingTime,
-    tags,
-  });
+    // Parse tags
+    const tags = tagsString
+      ? tagsString.split(',').map((t) => t.trim()).filter(Boolean)
+      : [];
 
-  // Revalidate paths
-  revalidatePath('/admin/blog');
-  revalidatePath('/blog');
-  revalidatePath('/playbooks');
-  
-  // Only revalidate the specific post page if it's published
-  if (status === 'published') {
-    revalidatePath(`/blog/${slug}`);
-    revalidatePath(`/playbooks/${slug}`);
+    await createPost({
+      slug,
+      title,
+      subtitle,
+      summary,
+      content,
+      type,
+      cover_image_url: coverImageUrl,
+      status,
+      reading_time_minutes: readingTime,
+      tags,
+    });
+
+    // Revalidate paths
+    revalidatePath('/admin/blog');
+    revalidatePath('/blog');
+    revalidatePath('/playbooks');
+    
+    // Only revalidate the specific post page if it's published
+    if (status === 'published') {
+      revalidatePath(`/blog/${slug}`);
+      revalidatePath(`/playbooks/${slug}`);
+    }
+  } catch (error) {
+    // Log the actual error server-side
+    console.error('[createPostAction] Error:', error);
+    // Re-throw with more context
+    throw new Error(`Failed to create post: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
   
   redirect('/admin/blog');
 }
 
 export async function updatePostAction(id: number, formData: FormData) {
-  // Security: Verify user is authenticated
-  const session = await auth();
-  if (!session?.user) {
-    throw new Error('Unauthorized: You must be signed in to edit posts');
-  }
+  try {
+    // Security: Verify user is authenticated
+    const session = await auth();
+    if (!session?.user) {
+      throw new Error('Unauthorized: You must be signed in to edit posts');
+    }
 
-  const title = formData.get('title') as string;
-  const subtitle = formData.get('subtitle') as string;
-  const summary = formData.get('summary') as string;
-  const content = formData.get('content') as string;
-  const type = formData.get('type') as string;
-  const coverImageUrl = formData.get('cover_image_url') as string;
-  const status = formData.get('status') as 'draft' | 'published';
-  const tagsString = formData.get('tags') as string;
-  let slug = formData.get('slug') as string;
+    const title = formData.get('title') as string;
+    const subtitle = formData.get('subtitle') as string;
+    const summary = formData.get('summary') as string;
+    const content = formData.get('content') as string;
+    const type = formData.get('type') as string;
+    const coverImageUrl = formData.get('cover_image_url') as string;
+    const status = formData.get('status') as 'draft' | 'published';
+    const tagsString = formData.get('tags') as string;
+    let slug = formData.get('slug') as string;
 
-  // Generate slug from title if not provided
-  if (!slug || slug.trim() === '') {
-    slug = generateSlug(title);
-  }
+    // Validate required fields
+    if (!title || !content) {
+      throw new Error('Title and content are required');
+    }
 
-  // Calculate reading time
-  const readingTime = calculateReadingTime(content);
+    // Generate slug from title if not provided
+    if (!slug || slug.trim() === '') {
+      slug = generateSlug(title);
+    }
 
-  // Parse tags
-  const tags = tagsString
-    ? tagsString.split(',').map((t) => t.trim()).filter(Boolean)
-    : [];
+    // Calculate reading time
+    const readingTime = calculateReadingTime(content);
 
-  await updatePost(id, {
-    slug,
-    title,
-    subtitle,
-    summary,
-    content,
-    type,
-    cover_image_url: coverImageUrl,
-    status,
-    reading_time_minutes: readingTime,
-    tags,
-  });
+    // Parse tags
+    const tags = tagsString
+      ? tagsString.split(',').map((t) => t.trim()).filter(Boolean)
+      : [];
 
-  // Revalidate paths
-  revalidatePath('/admin/blog');
-  revalidatePath('/blog');
-  revalidatePath('/playbooks');
-  
-  // Only revalidate the specific post page if it's published
-  if (status === 'published') {
-    revalidatePath(`/blog/${slug}`);
-    revalidatePath(`/playbooks/${slug}`);
+    await updatePost(id, {
+      slug,
+      title,
+      subtitle,
+      summary,
+      content,
+      type,
+      cover_image_url: coverImageUrl,
+      status,
+      reading_time_minutes: readingTime,
+      tags,
+    });
+
+    // Revalidate paths
+    revalidatePath('/admin/blog');
+    revalidatePath('/blog');
+    revalidatePath('/playbooks');
+    
+    // Only revalidate the specific post page if it's published
+    if (status === 'published') {
+      revalidatePath(`/blog/${slug}`);
+      revalidatePath(`/playbooks/${slug}`);
+    }
+  } catch (error) {
+    // Log the actual error server-side
+    console.error('[updatePostAction] Error:', error);
+    // Re-throw with more context
+    throw new Error(`Failed to update post: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
   
   redirect('/admin/blog');
 }
 
 export async function deletePostAction(id: number) {
-  // Security: Verify user is authenticated
-  const session = await auth();
-  if (!session?.user) {
-    throw new Error('Unauthorized: You must be signed in to delete posts');
-  }
+  try {
+    // Security: Verify user is authenticated
+    const session = await auth();
+    if (!session?.user) {
+      throw new Error('Unauthorized: You must be signed in to delete posts');
+    }
 
-  await deletePost(id);
-  revalidatePath('/blog');
-  revalidatePath('/playbooks');
+    await deletePost(id);
+    revalidatePath('/blog');
+    revalidatePath('/playbooks');
+  } catch (error) {
+    // Log the actual error server-side
+    console.error('[deletePostAction] Error:', error);
+    // Re-throw with more context
+    throw new Error(`Failed to delete post: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+  
   redirect('/admin/blog');
 }
 
