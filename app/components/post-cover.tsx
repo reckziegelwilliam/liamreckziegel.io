@@ -28,8 +28,8 @@ export function PostCover({
         {/* Left Side - Label Badge */}
         <div className="flex items-start p-6 md:p-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 text-xs text-slate-200">
-            <span className="h-2 w-2 rounded-full bg-gradient-to-tr from-emerald-400 to-sky-400" />
-            {label}
+          <span className="h-2 w-2 rounded-full bg-gradient-to-tr from-emerald-400 to-sky-400" />
+          {label}
           </div>
         </div>
 
@@ -46,7 +46,7 @@ export function PostCover({
           )}
 
           <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-600 dark:text-neutral-400 mt-auto">
-            <span>Author: Liam Reckziegel</span>
+          <span>Author: Liam Reckziegel</span>
             <span className="h-1 w-1 rounded-full bg-neutral-400 dark:bg-neutral-600" />
             <span>{label} · deep dive</span>
           </div>
