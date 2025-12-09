@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MDXRemote } from 'next-mdx-remote/rsc';
+import { CustomMDX } from '@/app/components/mdx';
 import { Eye, Edit } from 'lucide-react';
 
 interface MarkdownEditorProps {
@@ -80,7 +80,7 @@ export function MarkdownEditor({ value, onChange, placeholder, storageKey = 'dra
         ) : (
           <div className="min-h-[500px] p-4 prose prose-neutral dark:prose-invert max-w-none">
             {mounted && value ? (
-              <MDXRemote source={value} />
+              <CustomMDX source={value} />
             ) : (
               <p className="text-[#9CA3AF]">Nothing to preview yet...</p>
             )}

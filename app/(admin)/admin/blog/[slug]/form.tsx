@@ -35,10 +35,20 @@ export default function EditPostForm({ post }: EditPostFormProps) {
       form.append('status', status);
 
       await updatePostAction(post.id, form);
-      // Redirect handled by server action
-    } catch (error) {
+      // Server action will handle redirect, but this shouldn't be reached
+      // unless there's an error
+    } catch (error: any) {
       console.error('Error updating post:', error);
-      alert('Failed to update post. Please try again.');
+      
+      // Check if this is a redirect error (which is actually success in Next.js)
+      if (error?.message?.includes('NEXT_REDIRECT') || error?.digest?.includes('NEXT_REDIRECT')) {
+        // This is actually a successful redirect, ignore the error
+        return;
+      }
+      
+      // Show user-friendly error message
+      const errorMessage = error?.message || 'Failed to update post. Please try again.';
+      alert(errorMessage);
       setIsSubmitting(false);
     }
   };
@@ -52,10 +62,19 @@ export default function EditPostForm({ post }: EditPostFormProps) {
     setIsSubmitting(true);
     try {
       await deletePostAction(post.id);
-      // Redirect handled by server action
-    } catch (error) {
+      // Server action will handle redirect
+    } catch (error: any) {
       console.error('Error deleting post:', error);
-      alert('Failed to delete post. Please try again.');
+      
+      // Check if this is a redirect error (which is actually success in Next.js)
+      if (error?.message?.includes('NEXT_REDIRECT') || error?.digest?.includes('NEXT_REDIRECT')) {
+        // This is actually a successful redirect, ignore the error
+        return;
+      }
+      
+      // Show user-friendly error message
+      const errorMessage = error?.message || 'Failed to delete post. Please try again.';
+      alert(errorMessage);
       setIsSubmitting(false);
       setShowDeleteConfirm(false);
     }

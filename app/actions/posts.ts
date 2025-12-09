@@ -53,8 +53,17 @@ export async function createPostAction(formData: FormData) {
     tags,
   });
 
+  // Revalidate paths
+  revalidatePath('/admin/blog');
   revalidatePath('/blog');
   revalidatePath('/playbooks');
+  
+  // Only revalidate the specific post page if it's published
+  if (status === 'published') {
+    revalidatePath(`/blog/${slug}`);
+    revalidatePath(`/playbooks/${slug}`);
+  }
+  
   redirect('/admin/blog');
 }
 
@@ -101,9 +110,17 @@ export async function updatePostAction(id: number, formData: FormData) {
     tags,
   });
 
+  // Revalidate paths
+  revalidatePath('/admin/blog');
   revalidatePath('/blog');
   revalidatePath('/playbooks');
-  revalidatePath(`/playbooks/${slug}`);
+  
+  // Only revalidate the specific post page if it's published
+  if (status === 'published') {
+    revalidatePath(`/blog/${slug}`);
+    revalidatePath(`/playbooks/${slug}`);
+  }
+  
   redirect('/admin/blog');
 }
 

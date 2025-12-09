@@ -3,8 +3,7 @@ import { notFound } from 'next/navigation';
 import { Clock, Calendar, Tag, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { MDXRemote } from 'next-mdx-remote/rsc';
-import { highlight } from 'sugar-high';
+import { CustomMDX } from '@/app/components/mdx';
 import { getBlogPostSchema } from '@/lib/structured-data';
 import { PostCover } from '@/app/components/post-cover';
 import { PageViewTracker } from '@/app/components/page-view-tracker';
@@ -14,17 +13,6 @@ interface PageProps {
     slug: string;
   };
 }
-
-// Code component with syntax highlighting
-function Code({ children, ...props }: any) {
-  let codeHTML = highlight(children);
-  return <code dangerouslySetInnerHTML={{ __html: codeHTML }} {...props} />;
-}
-
-// Custom MDX components
-const components = {
-  code: Code,
-};
 
 // Disable static generation until database is set up
 export const dynamic = 'force-dynamic';
@@ -163,7 +151,7 @@ export default async function PlaybookPost({ params }: PageProps) {
 
       {/* Content */}
       <article className="prose prose-neutral dark:prose-invert max-w-none">
-        <MDXRemote source={post.content} components={components} />
+        <CustomMDX source={post.content} />
       </article>
 
       {/* CTA */}
