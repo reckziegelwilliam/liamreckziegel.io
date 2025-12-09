@@ -1,0 +1,787 @@
+---
+title: 'Redux Toolkit Best Practices for Production Apps'
+subtitle: 'Modern State Management Patterns'
+slug: 'redux-toolkit-best-practices'
+publishedAt: '2024-12-09'
+summary: 'Production-tested patterns for Redux Toolkit in React and React Native apps. Async thunks, normalized state, performance optimization, and common pitfalls.'
+tags: 'redux, react, react-native, state-management, typescript'
+type: 'Playbook'
+---
+
+## Why Redux Toolkit?
+
+After using Redux in multiple production apps, Redux Toolkit (RTK) is the clear winner over vanilla Redux:
+
+<Comparison 
+  labels={{ before: 'Vanilla Redux', after: 'Redux Toolkit' }}
+  before={
+    <>
+      <p><strong>Lots of boilerplate:</strong></p>
+      <ul>
+        <li>Manual action creators</li>
+        <li>Action type constants</li>
+        <li>Complex reducers</li>
+        <li>Manual immutability</li>
+      </ul>
+      <p>~200+ lines for simple feature</p>
+    </>
+  }
+  after={
+    <>
+      <p><strong>Minimal boilerplate:</strong></p>
+      <ul>
+        <li>Auto-generated actions</li>
+        <li>Built-in TypeScript support</li>
+        <li>Immer for immutability</li>
+        <li>RTK Query included</li>
+      </ul>
+      <p>~50 lines for same feature</p>
+    </>
+  }
+/>
+
+**When to Use Redux**:
+- Complex state shared across many components
+- Frequent state updates from multiple sources
+- Need time-travel debugging
+- Team already familiar with Redux
+
+**When NOT to Use**:
+- Simple apps (React Context is fine)
+- Mostly server state (use React Query instead)
+- Learning React for first time
+
+<Alert type="info">
+Don't reach for Redux on every project. For simple apps or primarily server state, consider React Context or React Query instead. Redux shines when you have complex client state shared across many components.
+</Alert>
+
+## Store Setup
+
+### Basic Configuration
+
+```typescript
+// store/index.ts
+import { configureStore } from '@reduxjs/toolkit';
+import { setupListeners } from '@reduxjs/toolkit/query';
+import authSlice from './slices/authSlice';
+import postsSlice from './slices/postsSlice';
+import { api } from './services/api';
+
+export const store = configureStore({
+  reducer: {
+    auth: authSlice,
+    posts: postsSlice,
+    [api.reducerPath]: api.reducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(api.middleware),
+});
+
+// Enable refetchOnFocus/refetchOnReconnect
+setupListeners(store.dispatch);
+
+// TypeScript types
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+```
+
+### Typed Hooks
+
+```typescript
+// store/hooks.ts
+import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
+import type { RootState, AppDispatch } from './index';
+
+// Use throughout app instead of plain `useDispatch` and `useSelector`
+export const useAppDispatch = () => useDispatch<AppDispatch>();
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
+```
+
+### React Native Setup with Persistence
+
+```typescript
+// store/index.ts (React Native)
+import { configureStore } from '@reduxjs/toolkit';
+import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import authSlice from './slices/authSlice';
+
+const persistConfig = {
+  key: 'root',
+  version: 1,
+  storage: AsyncStorage,
+  whitelist: ['auth'], // Only persist auth
+};
+
+const persistedAuthReducer = persistReducer(persistConfig, authSlice);
+
+export const store = configureStore({
+  reducer: {
+    auth: persistedAuthReducer,
+    // other non-persisted slices
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+      },
+    }),
+});
+
+export const persistor = persistStore(store);
+```
+
+## Slice Patterns
+
+### Basic Slice with Async Thunks
+
+```typescript
+// slices/authSlice.ts
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { authAPI } from '@/services/api';
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+}
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  error: string | null;
+}
+
+const initialState: AuthState = {
+  user: null,
+  token: null,
+  status: 'idle',
+  error: null,
+};
+
+// Async thunks
+export const loginUser = createAsyncThunk(
+  'auth/login',
+  async (credentials: { email: string; password: string }, { rejectWithValue }) => {
+    try {
+      const response = await authAPI.login(credentials);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Login failed');
+    }
+  }
+);
+
+export const fetchCurrentUser = createAsyncThunk(
+  'auth/fetchCurrentUser',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await authAPI.getCurrentUser();
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch user');
+    }
+  }
+);
+
+const authSlice = createSlice({
+  name: 'auth',
+  initialState,
+  reducers: {
+    logout: (state) => {
+      state.user = null;
+      state.token = null;
+      state.status = 'idle';
+    },
+    setToken: (state, action: PayloadAction<string>) => {
+      state.token = action.payload;
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      // Login
+      .addCase(loginUser.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(loginUser.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        state.error = null;
+      })
+      .addCase(loginUser.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string;
+      })
+      // Fetch current user
+      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+        state.user = action.payload;
+      });
+  },
+});
+
+export const { logout, setToken } = authSlice.actions;
+
+// Selectors
+export const selectUser = (state: RootState) => state.auth.user;
+export const selectIsAuthenticated = (state: RootState) => !!state.auth.token;
+export const selectAuthStatus = (state: RootState) => state.auth.status;
+
+export default authSlice.reducer;
+```
+
+### Normalized State Pattern
+
+**Problem**: Nested data leads to complex updates.
+
+**Solution**: Normalize data using `createEntityAdapter`.
+
+```typescript
+// slices/postsSlice.ts
+import { createSlice, createAsyncThunk, createEntityAdapter } from '@reduxjs/toolkit';
+import type { RootState } from '../index';
+
+interface Post {
+  id: string;
+  title: string;
+  content: string;
+  authorId: string;
+  createdAt: string;
+}
+
+// Create entity adapter
+const postsAdapter = createEntityAdapter<Post>({
+  selectId: (post) => post.id,
+  sortComparer: (a, b) => b.createdAt.localeCompare(a.createdAt),
+});
+
+interface PostsState {
+  status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  error: string | null;
+}
+
+const initialState = postsAdapter.getInitialState<PostsState>({
+  status: 'idle',
+  error: null,
+});
+
+// Async thunks
+export const fetchPosts = createAsyncThunk('posts/fetchPosts', async () => {
+  const response = await fetch('/api/posts');
+  return response.json();
+});
+
+export const addPost = createAsyncThunk('posts/addPost', async (post: Omit<Post, 'id'>) => {
+  const response = await fetch('/api/posts', {
+    method: 'POST',
+    body: JSON.stringify(post),
+  });
+  return response.json();
+});
+
+export const updatePost = createAsyncThunk(
+  'posts/updatePost',
+  async ({ id, changes }: { id: string; changes: Partial<Post> }) => {
+    const response = await fetch(`/api/posts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(changes),
+    });
+    return response.json();
+  }
+);
+
+export const deletePost = createAsyncThunk('posts/deletePost', async (id: string) => {
+  await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+  return id;
+});
+
+const postsSlice = createSlice({
+  name: 'posts',
+  initialState,
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchPosts.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(fetchPosts.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        postsAdapter.setAll(state, action.payload);
+      })
+      .addCase(fetchPosts.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message || 'Failed to fetch posts';
+      })
+      .addCase(addPost.fulfilled, postsAdapter.addOne)
+      .addCase(updatePost.fulfilled, (state, action) => {
+        postsAdapter.updateOne(state, {
+          id: action.payload.id,
+          changes: action.payload,
+        });
+      })
+      .addCase(deletePost.fulfilled, postsAdapter.removeOne);
+  },
+});
+
+// Selectors
+export const {
+  selectAll: selectAllPosts,
+  selectById: selectPostById,
+  selectIds: selectPostIds,
+} = postsAdapter.getSelectors<RootState>((state) => state.posts);
+
+export const selectPostsByAuthor = (state: RootState, authorId: string) =>
+  selectAllPosts(state).filter((post) => post.authorId === authorId);
+
+export default postsSlice.reducer;
+```
+
+## RTK Query for API Calls
+
+**Benefits**:
+- Automatic caching
+- Automatic refetching
+- Loading states managed automatically
+- Optimistic updates
+- Tag-based cache invalidation
+
+```typescript
+// services/api.ts
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+
+interface Post {
+  id: string;
+  title: string;
+  content: string;
+}
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export const api = createApi({
+  reducerPath: 'api',
+  baseQuery: fetchBaseQuery({
+    baseUrl: '/api',
+    prepareHeaders: (headers, { getState }) => {
+      const token = (getState() as RootState).auth.token;
+      if (token) {
+        headers.set('authorization', `Bearer ${token}`);
+      }
+      return headers;
+    },
+  }),
+  tagTypes: ['Post', 'User'],
+  endpoints: (builder) => ({
+    // Queries (GET)
+    getPosts: builder.query<Post[], void>({
+      query: () => '/posts',
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'Post' as const, id })),
+              { type: 'Post', id: 'LIST' },
+            ]
+          : [{ type: 'Post', id: 'LIST' }],
+    }),
+    
+    getPost: builder.query<Post, string>({
+      query: (id) => `/posts/${id}`,
+      providesTags: (result, error, id) => [{ type: 'Post', id }],
+    }),
+    
+    // Mutations (POST, PUT, DELETE)
+    createPost: builder.mutation<Post, Omit<Post, 'id'>>({
+      query: (body) => ({
+        url: '/posts',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: [{ type: 'Post', id: 'LIST' }],
+    }),
+    
+    updatePost: builder.mutation<Post, { id: string; data: Partial<Post> }>({
+      query: ({ id, data }) => ({
+        url: `/posts/${id}`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'Post', id }],
+      // Optimistic update
+      async onQueryStarted({ id, data }, { dispatch, queryFulfilled }) {
+        const patchResult = dispatch(
+          api.util.updateQueryData('getPost', id, (draft) => {
+            Object.assign(draft, data);
+          })
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patchResult.undo();
+        }
+      },
+    }),
+    
+    deletePost: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/posts/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, id) => [
+        { type: 'Post', id },
+        { type: 'Post', id: 'LIST' },
+      ],
+    }),
+  }),
+});
+
+export const {
+  useGetPostsQuery,
+  useGetPostQuery,
+  useCreatePostMutation,
+  useUpdatePostMutation,
+  useDeletePostMutation,
+} = api;
+```
+
+### Usage in Components
+
+```typescript
+// components/PostsList.tsx
+import { useGetPostsQuery } from '@/services/api';
+
+export function PostsList() {
+  const { data: posts, isLoading, isError, error } = useGetPostsQuery();
+
+  if (isLoading) return <div>Loading...</div>;
+  if (isError) return <div>Error: {error.toString()}</div>;
+
+  return (
+    <div>
+      {posts?.map((post) => (
+        <PostCard key={post.id} post={post} />
+      ))}
+    </div>
+  );
+}
+
+// components/EditPost.tsx
+import { useUpdatePostMutation } from '@/services/api';
+
+export function EditPost({ post }: { post: Post }) {
+  const [updatePost, { isLoading }] = useUpdatePostMutation();
+
+  const handleSave = async (data: Partial<Post>) => {
+    try {
+      await updatePost({ id: post.id, data }).unwrap();
+      alert('Post updated!');
+    } catch (error) {
+      alert('Failed to update post');
+    }
+  };
+
+  return (
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      handleSave({ title: e.currentTarget.title.value });
+    }}>
+      <input name="title" defaultValue={post.title} />
+      <button disabled={isLoading}>Save</button>
+    </form>
+  );
+}
+```
+
+## Performance Optimization
+
+### 1. Memoized Selectors with Reselect
+
+```typescript
+// slices/postsSlice.ts
+import { createSelector } from '@reduxjs/toolkit';
+
+// Basic selector
+export const selectAllPosts = (state: RootState) => state.posts.entities;
+
+// Memoized derived selector
+export const selectPublishedPosts = createSelector(
+  [selectAllPosts],
+  (posts) => Object.values(posts).filter((post) => post?.status === 'published')
+);
+
+// Selector with parameters
+export const makeSelectPostsByAuthor = () =>
+  createSelector(
+    [selectAllPosts, (state: RootState, authorId: string) => authorId],
+    (posts, authorId) => Object.values(posts).filter((post) => post?.authorId === authorId)
+  );
+
+// Usage in component
+const selectPostsByAuthor = useMemo(makeSelectPostsByAuthor, []);
+const userPosts = useAppSelector((state) => selectPostsByAuthor(state, userId));
+```
+
+### 2. Avoid Unnecessary Re-renders
+
+```typescript
+// ❌ Bad: New object every time
+const user = useAppSelector((state) => ({
+  name: state.auth.user?.name,
+  email: state.auth.user?.email,
+}));
+
+// ✅ Good: Separate selectors
+const userName = useAppSelector((state) => state.auth.user?.name);
+const userEmail = useAppSelector((state) => state.auth.user?.email);
+
+// ✅ Also good: Memoized selector
+const selectUserInfo = createSelector(
+  [(state: RootState) => state.auth.user],
+  (user) => user ? { name: user.name, email: user.email } : null
+);
+const userInfo = useAppSelector(selectUserInfo);
+```
+
+### 3. RTK Query Cache Configuration
+
+```typescript
+export const api = createApi({
+  // ...
+  endpoints: (builder) => ({
+    getPosts: builder.query<Post[], void>({
+      query: () => '/posts',
+      // Keep unused data for 60 seconds
+      keepUnusedDataFor: 60,
+      // Refetch on mount if data is older than 30 seconds
+      refetchOnMountOrArgChange: 30,
+    }),
+  }),
+});
+```
+
+## Common Patterns
+
+### Loading & Error States
+
+```typescript
+// components/UserProfile.tsx
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { fetchCurrentUser, selectUser, selectAuthStatus } from '@/slices/authSlice';
+
+export function UserProfile() {
+  const dispatch = useAppDispatch();
+  const user = useAppSelector(selectUser);
+  const status = useAppSelector(selectAuthStatus);
+
+  useEffect(() => {
+    if (status === 'idle') {
+      dispatch(fetchCurrentUser());
+    }
+  }, [status, dispatch]);
+
+  if (status === 'loading') {
+    return <Skeleton />;
+  }
+
+  if (status === 'failed') {
+    return <ErrorMessage retry={() => dispatch(fetchCurrentUser())} />;
+  }
+
+  return <div>{user?.name}</div>;
+}
+```
+
+### Optimistic Updates
+
+```typescript
+// slices/postsSlice.ts
+export const toggleLike = createAsyncThunk(
+  'posts/toggleLike',
+  async ({ postId, userId }: { postId: string; userId: string }) => {
+    const response = await fetch(`/api/posts/${postId}/like`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+    return response.json();
+  }
+);
+
+// In extraReducers
+.addCase(toggleLike.pending, (state, action) => {
+  const post = state.entities[action.meta.arg.postId];
+  if (post) {
+    // Optimistically update
+    post.likes = (post.likes || 0) + 1;
+  }
+})
+.addCase(toggleLike.rejected, (state, action) => {
+  const post = state.entities[action.meta.arg.postId];
+  if (post) {
+    // Revert on failure
+    post.likes = (post.likes || 0) - 1;
+  }
+});
+```
+
+### Middleware for Side Effects
+
+```typescript
+// middleware/analyticsMiddleware.ts
+import { Middleware } from '@reduxjs/toolkit';
+import { loginUser, logout } from '@/slices/authSlice';
+
+export const analyticsMiddleware: Middleware = (store) => (next) => (action) => {
+  const result = next(action);
+
+  // Track specific actions
+  if (loginUser.fulfilled.match(action)) {
+    analytics.track('User Logged In', {
+      userId: action.payload.user.id,
+    });
+  }
+
+  if (logout.match(action)) {
+    analytics.track('User Logged Out');
+  }
+
+  return result;
+};
+
+// Add to store
+export const store = configureStore({
+  reducer: { /* ... */ },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(analyticsMiddleware),
+});
+```
+
+## Testing
+
+### Testing Slices
+
+```typescript
+// slices/__tests__/authSlice.test.ts
+import authReducer, { loginUser, logout, initialState } from '../authSlice';
+
+describe('authSlice', () => {
+  it('should handle logout', () => {
+    const previousState = {
+      user: { id: '123', name: 'John' },
+      token: 'abc123',
+      status: 'succeeded',
+      error: null,
+    };
+
+    expect(authReducer(previousState, logout())).toEqual(initialState);
+  });
+
+  it('should handle loginUser.fulfilled', () => {
+    const user = { id: '123', name: 'John', email: 'john@example.com' };
+    const token = 'abc123';
+
+    const action = loginUser.fulfilled(
+      { user, token },
+      '',
+      { email: 'john@example.com', password: 'password' }
+    );
+
+    const newState = authReducer(initialState, action);
+
+    expect(newState.user).toEqual(user);
+    expect(newState.token).toBe(token);
+    expect(newState.status).toBe('succeeded');
+  });
+});
+```
+
+### Testing Components with Redux
+
+```typescript
+// components/__tests__/UserProfile.test.tsx
+import { render, screen } from '@testing-library/react';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
+import authReducer from '@/slices/authSlice';
+import { UserProfile } from '../UserProfile';
+
+const renderWithRedux = (
+  component: React.ReactElement,
+  initialState?: any
+) => {
+  const store = configureStore({
+    reducer: { auth: authReducer },
+    preloadedState: initialState,
+  });
+
+  return render(<Provider store={store}>{component}</Provider>);
+};
+
+describe('UserProfile', () => {
+  it('renders user name when authenticated', () => {
+    renderWithRedux(<UserProfile />, {
+      auth: {
+        user: { id: '123', name: 'John Doe', email: 'john@example.com' },
+        token: 'abc123',
+        status: 'succeeded',
+        error: null,
+      },
+    });
+
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+  });
+});
+```
+
+## Common Pitfalls
+
+### 1. Mutating State Directly
+```typescript
+// ❌ Bad: Direct mutation (outside Immer)
+state.user.name = 'New Name';
+
+// ✅ Good: RTK uses Immer, so this works in slices
+state.user.name = 'New Name'; // In reducer
+
+// ✅ Good: For normal code
+const newUser = { ...state.user, name: 'New Name' };
+```
+
+### 2. Too Much State in Redux
+```typescript
+// ❌ Bad: Storing form state in Redux
+const [formData, setFormData] = useState({ /* form fields */ });
+
+// ✅ Good: Use local state for UI-only data
+// Only put in Redux what needs to be shared
+```
+
+### 3. Not Using Selectors
+```typescript
+// ❌ Bad: Selecting in component
+const user = useAppSelector((state) => state.auth.user);
+const isAdmin = user?.role === 'admin';
+
+// ✅ Good: Create selector
+export const selectIsAdmin = (state: RootState) => 
+  state.auth.user?.role === 'admin';
+
+const isAdmin = useAppSelector(selectIsAdmin);
+```
+
+<KeyTakeaways items={[
+  'Redux Toolkit eliminates 75% of Redux boilerplate code',
+  'createEntityAdapter provides normalized state patterns out of the box',
+  'RTK Query replaces all custom API logic with built-in caching and fetching',
+  'Memoized selectors with createSelector prevent unnecessary re-renders',
+  'TypeScript integration catches state management errors at compile time',
+  'Test slices in isolation for reliable state management',
+  'Keep UI-only state local - only put shared/global data in Redux',
+  'Optimistic updates dramatically improve perceived performance'
+]} />
+
+Redux Toolkit makes Redux practical and maintainable for production applications.
+

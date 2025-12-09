@@ -1,0 +1,744 @@
+---
+title: 'Frontend Performance Optimization: React & Next.js'
+subtitle: 'From Slow to Fast - A Practical Guide'
+slug: 'frontend-performance-optimization'
+publishedAt: '2024-12-09'
+summary: 'Comprehensive guide to optimizing React and Next.js applications. Code splitting, lazy loading, image optimization, and Core Web Vitals improvements.'
+tags: 'performance, react, nextjs, optimization, web-vitals'
+type: 'Playbook'
+---
+
+## Performance Metrics That Matter
+
+### Core Web Vitals
+
+**LCP (Largest Contentful Paint)**: < 2.5s
+- Measures loading performance
+- Largest element in viewport
+
+**FID (First Input Delay)**: < 100ms
+- Measures interactivity
+- Time from first interaction to browser response
+
+**CLS (Cumulative Layout Shift)**: < 0.1
+- Measures visual stability
+- Unexpected layout shifts
+
+**Additional Metrics**:
+- **TTI (Time to Interactive)**: < 3.5s
+- **TBT (Total Blocking Time)**: < 200ms
+- **FCP (First Contentful Paint)**: < 1.8s
+
+## Measuring Performance
+
+### Chrome DevTools
+
+```javascript
+// Lighthouse CLI
+npm install -g lighthouse
+lighthouse https://yoursite.com --view
+
+// Programmatic Lighthouse
+const lighthouse = require('lighthouse');
+const chromeLauncher = require('chrome-launcher');
+
+const chrome = await chromeLauncher.launch({chromeFlags: ['--headless']});
+const options = {logLevel: 'info', output: 'html', port: chrome.port};
+const runnerResult = await lighthouse('https://yoursite.com', options);
+```
+
+### Web Vitals Library
+
+```typescript
+// app/layout.tsx (Next.js)
+'use client';
+
+import { useReportWebVitals } from 'next/web-vitals';
+
+export function WebVitalsReporter() {
+  useReportWebVitals((metric) => {
+    console.log(metric);
+    
+    // Send to analytics
+    if (metric.label === 'web-vital') {
+      gtag('event', metric.name, {
+        value: Math.round(metric.value),
+        metric_id: metric.id,
+        metric_label: metric.label,
+      });
+    }
+  });
+
+  return null;
+}
+```
+
+### Real User Monitoring
+
+```typescript
+// lib/analytics.ts
+import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals';
+
+function sendToAnalytics(metric: Metric) {
+  const body = JSON.stringify(metric);
+  
+  // Use `navigator.sendBeacon()` if available, falling back to `fetch()`
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon('/api/analytics', body);
+  } else {
+    fetch('/api/analytics', { body, method: 'POST', keepalive: true });
+  }
+}
+
+getCLS(sendToAnalytics);
+getFID(sendToAnalytics);
+getFCP(sendToAnalytics);
+getLCP(sendToAnalytics);
+getTTFB(sendToAnalytics);
+```
+
+## Code Splitting & Lazy Loading
+
+### React.lazy() for Components
+
+```typescript
+// ❌ Bad: All components loaded upfront
+import HeavyChart from './HeavyChart';
+import VideoPlayer from './VideoPlayer';
+import ImageGallery from './ImageGallery';
+
+// ✅ Good: Lazy load heavy components
+const HeavyChart = lazy(() => import('./HeavyChart'));
+const VideoPlayer = lazy(() => import('./VideoPlayer'));
+const ImageGallery = lazy(() => import('./ImageGallery'));
+
+function Dashboard() {
+  return (
+    <Suspense fallback={<Skeleton />}>
+      <HeavyChart data={data} />
+    </Suspense>
+  );
+}
+```
+
+### Next.js Dynamic Imports
+
+```typescript
+// app/page.tsx
+import dynamic from 'next/dynamic';
+
+// Client component with no SSR
+const DynamicMap = dynamic(() => import('@/components/Map'), {
+  ssr: false,
+  loading: () => <MapSkeleton />,
+});
+
+// With named export
+const DynamicChart = dynamic(
+  () => import('@/components/Charts').then((mod) => mod.LineChart),
+  {
+    loading: () => <ChartSkeleton />,
+  }
+);
+
+export default function Page() {
+  return (
+    <div>
+      <DynamicMap coordinates={coords} />
+      <DynamicChart data={data} />
+    </div>
+  );
+}
+```
+
+### Route-Based Code Splitting
+
+Next.js does this automatically, but for React Router:
+
+```typescript
+// Router.tsx
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
+const Home = lazy(() => import('./pages/Home'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Profile = lazy(() => import('./pages/Profile'));
+
+export function Router() {
+  return (
+    <BrowserRouter>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
+}
+```
+
+## Image Optimization
+
+### Next.js Image Component
+
+```typescript
+import Image from 'next/image';
+
+// ✅ Optimized with automatic sizing
+<Image
+  src="/hero.jpg"
+  alt="Hero image"
+  width={1200}
+  height={600}
+  priority // Load immediately (above fold)
+  placeholder="blur"
+  blurDataURL="data:image/jpeg;base64,..."
+/>
+
+// Responsive images
+<Image
+  src="/product.jpg"
+  alt="Product"
+  fill
+  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+  className="object-cover"
+/>
+```
+
+### Generate Blur Placeholders
+
+```typescript
+// lib/getBlurDataURL.ts
+import { getPlaiceholder } from 'plaiceholder';
+
+export async function getBlurDataURL(src: string) {
+  const buffer = await fetch(src).then(async (res) =>
+    Buffer.from(await res.arrayBuffer())
+  );
+
+  const { base64 } = await getPlaiceholder(buffer);
+  return base64;
+}
+
+// Usage in page
+export async function generateMetadata({ params }) {
+  const blurDataURL = await getBlurDataURL('/hero.jpg');
+  
+  return {
+    // metadata
+  };
+}
+```
+
+### Responsive Images with srcset
+
+```typescript
+// For non-Next.js projects
+<img
+  src="/images/product-800w.jpg"
+  srcSet="
+    /images/product-400w.jpg 400w,
+    /images/product-800w.jpg 800w,
+    /images/product-1200w.jpg 1200w
+  "
+  sizes="(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px"
+  alt="Product"
+  loading="lazy"
+  decoding="async"
+/>
+```
+
+### WebP & AVIF Formats
+
+```typescript
+// next.config.mjs
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+};
+
+export default nextConfig;
+```
+
+## Bundle Size Optimization
+
+### Analyze Bundle
+
+```bash
+# Next.js
+npm install @next/bundle-analyzer
+```
+
+```javascript
+// next.config.mjs
+import bundleAnalyzer from '@next/bundle-analyzer';
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
+
+export default withBundleAnalyzer({
+  // your config
+});
+```
+
+```bash
+ANALYZE=true npm run build
+```
+
+### Tree Shaking
+
+```typescript
+// ❌ Bad: Imports entire library
+import _ from 'lodash';
+import moment from 'moment';
+
+// ✅ Good: Import only what you need
+import debounce from 'lodash/debounce';
+import dayjs from 'dayjs'; // Lighter alternative to moment
+```
+
+### Remove Unused Dependencies
+
+```bash
+npm install -g depcheck
+depcheck
+
+# Remove unused packages
+npm uninstall package-name
+```
+
+### Use Lighter Alternatives
+
+```typescript
+// Heavy → Light
+moment → dayjs (96% smaller)
+lodash → lodash-es (tree-shakeable)
+axios → fetch (native)
+react-icons → lucide-react (smaller)
+chart.js → recharts (React-optimized)
+```
+
+## React Performance Optimization
+
+### React.memo for Component Memoization
+
+```typescript
+// ❌ Bad: Re-renders every time parent renders
+function UserCard({ user }: { user: User }) {
+  return <div>{user.name}</div>;
+}
+
+// ✅ Good: Only re-renders if user changes
+const UserCard = React.memo(
+  function UserCard({ user }: { user: User }) {
+    return <div>{user.name}</div>;
+  },
+  (prevProps, nextProps) => prevProps.user.id === nextProps.user.id
+);
+```
+
+### useMemo for Expensive Calculations
+
+```typescript
+function ProductList({ products, filters }: Props) {
+  // ❌ Bad: Filters on every render
+  const filteredProducts = products.filter(p => 
+    p.category === filters.category
+  );
+
+  // ✅ Good: Only recalculates when dependencies change
+  const filteredProducts = useMemo(
+    () => products.filter(p => p.category === filters.category),
+    [products, filters.category]
+  );
+
+  return <>{/* render */}</>;
+}
+```
+
+### useCallback for Function Memoization
+
+```typescript
+function TodoList({ todos }: Props) {
+  // ❌ Bad: New function on every render
+  const handleToggle = (id: string) => {
+    toggleTodo(id);
+  };
+
+  // ✅ Good: Function only recreated when deps change
+  const handleToggle = useCallback(
+    (id: string) => {
+      toggleTodo(id);
+    },
+    [toggleTodo]
+  );
+
+  return (
+    <>
+      {todos.map(todo => (
+        <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} />
+      ))}
+    </>
+  );
+}
+```
+
+### Virtualize Long Lists
+
+```typescript
+// npm install react-window
+import { FixedSizeList } from 'react-window';
+
+function VirtualizedList({ items }: { items: Item[] }) {
+  const Row = ({ index, style }: { index: number; style: React.CSSStyle }) => (
+    <div style={style}>
+      <Item data={items[index]} />
+    </div>
+  );
+
+  return (
+    <FixedSizeList
+      height={600}
+      itemCount={items.length}
+      itemSize={80}
+      width="100%"
+    >
+      {Row}
+    </FixedSizeList>
+  );
+}
+```
+
+### Avoid Inline Objects & Functions
+
+```typescript
+// ❌ Bad: New object on every render causes re-render
+<Component style={{ padding: 20 }} />
+
+// ✅ Good: Define outside or use CSS
+const styles = { padding: 20 };
+<Component style={styles} />
+
+// ❌ Bad: New function on every render
+<Button onClick={() => handleClick(id)} />
+
+// ✅ Good: Use useCallback or pass stable reference
+const handleButtonClick = useCallback(() => handleClick(id), [id]);
+<Button onClick={handleButtonClick} />
+```
+
+## Next.js Specific Optimizations
+
+### Server Components by Default
+
+```typescript
+// app/page.tsx (Server Component - default)
+async function Page() {
+  // Data fetching on server
+  const data = await fetchData();
+  
+  return <div>{data}</div>;
+}
+
+// components/InteractiveButton.tsx (Client Component when needed)
+'use client';
+
+export function InteractiveButton() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(count + 1)}>{count}</button>;
+}
+```
+
+### Streaming with Suspense
+
+```typescript
+// app/dashboard/page.tsx
+import { Suspense } from 'react';
+
+async function SlowComponent() {
+  const data = await fetchSlowData(); // Takes 3 seconds
+  return <div>{data}</div>;
+}
+
+export default function Dashboard() {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      {/* Page loads immediately, this component streams in */}
+      <Suspense fallback={<Skeleton />}>
+        <SlowComponent />
+      </Suspense>
+    </div>
+  );
+}
+```
+
+### Static vs Dynamic Rendering
+
+```typescript
+// Static (default) - Built at build time
+export default async function Page() {
+  const data = await fetch('https://api.example.com/data', {
+    next: { revalidate: 3600 } // Revalidate every hour
+  });
+  return <div>{data}</div>;
+}
+
+// Dynamic - Rendered on each request
+export const dynamic = 'force-dynamic';
+
+export default async function Page() {
+  const data = await fetchUserSpecificData();
+  return <div>{data}</div>;
+}
+
+// Partial Prerendering (Next.js 14+)
+export const experimental_ppr = true;
+```
+
+### Font Optimization
+
+```typescript
+// app/layout.tsx
+import { Inter, Roboto_Mono } from 'next/font/google';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
+const robotoMono = Roboto_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-roboto-mono',
+});
+
+export default function RootLayout({ children }: Props) {
+  return (
+    <html lang="en" className={`${inter.variable} ${robotoMono.variable}`}>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+## Network Optimization
+
+### Prefetching & Preloading
+
+```typescript
+// Next.js automatic prefetching with Link
+import Link from 'next/link';
+
+<Link href="/dashboard" prefetch={true}>
+  Dashboard
+</Link>
+
+// Manual prefetching
+import { useRouter } from 'next/navigation';
+
+const router = useRouter();
+router.prefetch('/dashboard');
+```
+
+### Resource Hints
+
+```typescript
+// app/layout.tsx
+export default function RootLayout({ children }: Props) {
+  return (
+    <html>
+      <head>
+        {/* Preconnect to external domains */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://api.example.com" />
+        
+        {/* DNS prefetch for older browsers */}
+        <link rel="dns-prefetch" href="https://analytics.example.com" />
+        
+        {/* Preload critical resources */}
+        <link
+          rel="preload"
+          href="/fonts/inter.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+### Service Worker for Caching
+
+```typescript
+// public/sw.js
+const CACHE_NAME = 'v1';
+const urlsToCache = [
+  '/',
+  '/styles/main.css',
+  '/scripts/main.js',
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) => response || fetch(event.request))
+  );
+});
+```
+
+## CSS Optimization
+
+### Critical CSS Inlining
+
+```typescript
+// Next.js automatically inlines critical CSS
+// For other setups, use critical CSS extraction
+
+import critical from 'critical';
+
+critical.generate({
+  inline: true,
+  base: 'dist/',
+  src: 'index.html',
+  dest: 'index.html',
+  width: 1300,
+  height: 900,
+});
+```
+
+### CSS-in-JS Performance
+
+```typescript
+// ❌ Slow: Runtime CSS-in-JS (styled-components, emotion)
+import styled from 'styled-components';
+
+const Button = styled.button`
+  background: blue;
+  padding: 10px;
+`;
+
+// ✅ Fast: Zero-runtime CSS-in-JS (vanilla-extract, linaria)
+import { style } from '@vanilla-extract/css';
+
+export const button = style({
+  background: 'blue',
+  padding: 10,
+});
+
+// ✅ Fastest: Tailwind CSS (utility-first, no runtime)
+<button className="bg-blue-500 px-4 py-2">Click me</button>
+```
+
+## Monitoring & Continuous Improvement
+
+### Performance Budget
+
+```javascript
+// webpack.config.js
+module.exports = {
+  performance: {
+    maxEntrypointSize: 250000, // 250 KB
+    maxAssetSize: 250000,
+    hints: 'error',
+  },
+};
+
+// Next.js performance budgets in next.config.js
+const nextConfig = {
+  webpack(config) {
+    config.performance = {
+      maxEntrypointSize: 250000,
+      maxAssetSize: 250000,
+    };
+    return config;
+  },
+};
+```
+
+### Automated Lighthouse CI
+
+```yaml
+# .github/workflows/lighthouse.yml
+name: Lighthouse CI
+on: [push]
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v9
+        with:
+          urls: |
+            https://your-site.com/
+            https://your-site.com/about
+          budgetPath: ./budget.json
+          uploadArtifacts: true
+```
+
+## Checklist
+
+### Build Time
+- [ ] Enable minification
+- [ ] Enable tree shaking
+- [ ] Analyze bundle size
+- [ ] Remove unused dependencies
+- [ ] Use production builds
+
+### Images
+- [ ] Use Next.js Image or responsive images
+- [ ] Implement lazy loading
+- [ ] Use WebP/AVIF formats
+- [ ] Add blur placeholders
+- [ ] Optimize image sizes
+
+### Code
+- [ ] Code splitting by route
+- [ ] Lazy load heavy components
+- [ ] Memoize expensive calculations
+- [ ] Virtualize long lists
+- [ ] Avoid unnecessary re-renders
+
+### Network
+- [ ] Enable HTTP/2
+- [ ] Use CDN
+- [ ] Enable compression (gzip/brotli)
+- [ ] Implement caching headers
+- [ ] Prefetch critical resources
+
+### Fonts
+- [ ] Use font-display: swap
+- [ ] Subset fonts
+- [ ] Preload fonts
+- [ ] Use system fonts when possible
+
+## Key Takeaways
+
+- **Measure first** - Use Lighthouse and Web Vitals
+- **Code splitting** - Don't load what you don't need
+- **Image optimization** - Biggest impact on LCP
+- **Lazy load** - Below-the-fold content
+- **Memoization** - React.memo, useMemo, useCallback
+- **Server components** - Reduce client JS (Next.js)
+- **Monitor continuously** - Performance degrades over time
+
+Performance is a feature, not a nice-to-have. Users notice the difference.
+

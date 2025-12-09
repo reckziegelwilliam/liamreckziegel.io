@@ -1,0 +1,653 @@
+---
+title: 'Building a React Native MVP from Scratch in 6 Months'
+subtitle: 'From Zero to App Store with a Small Team'
+slug: 'building-react-native-mvp-six-months'
+publishedAt: '2024-12-09'
+summary: 'Complete guide to building and shipping a React Native MVP for iOS and Android in 6 months. Architecture, team management, and critical decisions.'
+tags: 'react-native, mvp, mobile, ios, android, startup'
+type: 'Playbook'
+---
+
+## The Challenge
+
+Build a production-ready React Native app for iOS and Android from absolute zero. Enable live user testing and investor demos within 6 months while managing one other engineer.
+
+**Constraints**:
+- Small team (2 engineers)
+- No existing mobile infrastructure
+- Tight deadline for fundraising demos
+- Need both iOS and Android parity
+- Must be stable enough for real user testing
+
+<MetricsGrid metrics={[
+  { value: '6 months', label: 'Development Time' },
+  { value: '2 engineers', label: 'Team Size' },
+  { value: 'iOS + Android', label: 'Platforms' },
+  { value: '100%', label: 'Code Sharing' }
+]} />
+
+## Technology Stack
+
+### Core Framework
+```json
+{
+  "react-native": "0.72.x",
+  "react": "18.2.x",
+  "typescript": "5.x"
+}
+```
+
+**Why React Native?**:
+- Single codebase for iOS and Android
+- Fast iteration with hot reload
+- Large ecosystem of libraries
+- Team already familiar with React
+
+**Why TypeScript?**:
+- Catch bugs at compile time
+- Better IDE support
+- Easier refactoring
+- Self-documenting code
+
+### State Management
+```bash
+npm install @reduxjs/toolkit react-redux redux-persist
+```
+
+**Redux Toolkit** for predictable state:
+- Centralized state for complex flows
+- Time-travel debugging
+- Persistence across app restarts
+
+### Navigation
+```bash
+npm install @react-navigation/native @react-navigation/stack
+npm install react-native-screens react-native-safe-area-context
+```
+
+**React Navigation v6**:
+- Type-safe routing
+- Smooth native transitions
+- Deep linking support
+
+### Notifications
+```bash
+npm install @twilio/conversations
+```
+
+**Twilio** for real-time messaging:
+- Reliable message delivery
+- Push notifications
+- Presence detection
+- Scalable infrastructure
+
+### Animations
+```bash
+npm install react-native-reanimated
+```
+
+**Reanimated v2**:
+- 60fps smooth animations
+- Runs on native thread
+- Complex gesture handling
+
+## Month 1: Foundation
+
+<TimelineStep number="1" title="Foundation & Setup">
+Set up the project infrastructure, development environment, and core architecture. Focus on getting both platforms building and running smoothly.
+</TimelineStep>
+
+### Week 1-2: Project Setup
+
+**Initialize Project**
+```bash
+npx react-native@latest init AppName --template react-native-template-typescript
+```
+
+**Folder Structure**
+```
+src/
+  ├── components/     # Reusable UI components
+  ├── screens/        # Screen components
+  ├── navigation/     # Navigation configuration
+  ├── store/          # Redux slices
+  ├── services/       # API clients, Twilio, etc.
+  ├── hooks/          # Custom hooks
+  ├── utils/          # Helper functions
+  ├── types/          # TypeScript types
+  └── theme/          # Colors, spacing, typography
+```
+
+**Configure TypeScript**
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "commonjs",
+    "lib": ["es2017"],
+    "allowJs": true,
+    "jsx": "react-native",
+    "strict": true,
+    "moduleResolution": "node",
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["*"]
+    },
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  }
+}
+```
+
+### Week 3-4: Core Architecture
+
+**Redux Store Setup**
+```typescript
+// store/index.ts
+import { configureStore } from '@reduxjs/toolkit';
+import { persistStore, persistReducer } from 'redux-persist';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import authSlice from './slices/authSlice';
+import chatSlice from './slices/chatSlice';
+
+const persistConfig = {
+  key: 'root',
+  storage: AsyncStorage,
+  whitelist: ['auth'], // Only persist auth
+};
+
+const persistedAuthReducer = persistReducer(persistConfig, authSlice);
+
+export const store = configureStore({
+  reducer: {
+    auth: persistedAuthReducer,
+    chat: chatSlice,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+      },
+    }),
+});
+
+export const persistor = persistStore(store);
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+```
+
+**Type-Safe Navigation**
+```typescript
+// navigation/types.ts
+export type RootStackParamList = {
+  Splash: undefined;
+  Auth: undefined;
+  Home: undefined;
+  Chat: { conversationId: string };
+  Profile: { userId: string };
+};
+
+declare global {
+  namespace ReactNavigation {
+    interface RootParamList extends RootStackParamList {}
+  }
+}
+```
+
+**Navigation Setup**
+```typescript
+// navigation/RootNavigator.tsx
+import { createStackNavigator } from '@react-navigation/stack';
+import { NavigationContainer } from '@react-navigation/native';
+
+const Stack = createStackNavigator<RootStackParamList>();
+
+export function RootNavigator() {
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!isAuthenticated ? (
+          <Stack.Screen name="Auth" component={AuthScreen} />
+        ) : (
+          <>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+```
+
+## Month 2-3: Core Features
+
+### Authentication Flow
+
+```typescript
+// store/slices/authSlice.ts
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { authAPI } from '@/services/api';
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  error: string | null;
+}
+
+export const loginUser = createAsyncThunk(
+  'auth/login',
+  async (credentials: { email: string; password: string }) => {
+    const response = await authAPI.login(credentials);
+    return response.data;
+  }
+);
+
+const authSlice = createSlice({
+  name: 'auth',
+  initialState: {
+    user: null,
+    token: null,
+    status: 'idle',
+    error: null,
+  } as AuthState,
+  reducers: {
+    logout: (state) => {
+      state.user = null;
+      state.token = null;
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(loginUser.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(loginUser.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+      })
+      .addCase(loginUser.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message || 'Login failed';
+      });
+  },
+});
+
+export const { logout } = authSlice.actions;
+export default authSlice.reducer;
+```
+
+### Twilio Integration
+
+```typescript
+// services/twilioClient.ts
+import { Client } from '@twilio/conversations';
+
+class TwilioService {
+  private client: Client | null = null;
+
+  async initialize(token: string) {
+    this.client = new Client(token);
+
+    this.client.on('connectionStateChanged', (state) => {
+      console.log('Twilio connection:', state);
+    });
+
+    this.client.on('messageAdded', (message) => {
+      // Handle incoming messages
+      store.dispatch(addMessage(message));
+    });
+
+    await this.client.conversations.getSubscribedConversations();
+  }
+
+  async sendMessage(conversationSid: string, text: string) {
+    const conversation = await this.client?.getConversationBySid(conversationSid);
+    await conversation?.sendMessage(text);
+  }
+
+  async createConversation(friendlyName: string, participants: string[]) {
+    const conversation = await this.client?.createConversation({
+      friendlyName,
+    });
+
+    for (const participant of participants) {
+      await conversation?.add(participant);
+    }
+
+    return conversation;
+  }
+}
+
+export const twilioService = new TwilioService();
+```
+
+### Reusable Components
+
+```typescript
+// components/Button.tsx
+import { TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+
+interface ButtonProps {
+  title: string;
+  onPress: () => void;
+  loading?: boolean;
+  variant?: 'primary' | 'secondary';
+}
+
+export function Button({ title, onPress, loading, variant = 'primary' }: ButtonProps) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={loading}
+      style={[
+        styles.button,
+        variant === 'primary' ? styles.primary : styles.secondary,
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator color="#fff" />
+      ) : (
+        <Text style={styles.text}>{title}</Text>
+      )}
+    </TouchableOpacity>
+  );
+}
+```
+
+## Month 4: Polish & Animations
+
+### Smooth Interactions with Reanimated
+
+```typescript
+// components/SwipeableCard.tsx
+import Animated, {
+  useAnimatedGestureHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { PanGestureHandler } from 'react-native-gesture-handler';
+
+export function SwipeableCard({ children, onSwipeLeft, onSwipeRight }) {
+  const translateX = useSharedValue(0);
+
+  const gestureHandler = useAnimatedGestureHandler({
+    onActive: (event) => {
+      translateX.value = event.translationX;
+    },
+    onEnd: (event) => {
+      if (event.translationX > 100) {
+        runOnJS(onSwipeRight)();
+      } else if (event.translationX < -100) {
+        runOnJS(onSwipeLeft)();
+      }
+      translateX.value = withSpring(0);
+    },
+  });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  return (
+    <PanGestureHandler onGestureEvent={gestureHandler}>
+      <Animated.View style={animatedStyle}>
+        {children}
+      </Animated.View>
+    </PanGestureHandler>
+  );
+}
+```
+
+### Performance Optimization
+
+```typescript
+// Memoize expensive components
+const UserListItem = React.memo(({ user }: { user: User }) => (
+  <View>
+    <Text>{user.name}</Text>
+  </View>
+), (prev, next) => prev.user.id === next.user.id);
+
+// Use FlatList for long lists
+<FlatList
+  data={users}
+  renderItem={({ item }) => <UserListItem user={item} />}
+  keyExtractor={(item) => item.id}
+  initialNumToRender={10}
+  maxToRenderPerBatch={10}
+  windowSize={5}
+  removeClippedSubviews={true}
+/>
+```
+
+## Month 5: Testing & Debugging
+
+### Error Handling
+
+```typescript
+// utils/errorHandler.ts
+import * as Sentry from '@sentry/react-native';
+
+export function handleError(error: Error, context?: Record<string, any>) {
+  // Log to console in development
+  if (__DEV__) {
+    console.error(error, context);
+  }
+
+  // Report to Sentry in production
+  Sentry.captureException(error, {
+    contexts: {
+      custom: context,
+    },
+  });
+
+  // Show user-friendly message
+  Alert.alert(
+    'Something went wrong',
+    'We\'ve been notified and are working on a fix.'
+  );
+}
+```
+
+### Testing Strategy
+
+```typescript
+// __tests__/authSlice.test.ts
+import authReducer, { loginUser } from '@/store/slices/authSlice';
+
+describe('authSlice', () => {
+  it('should handle login success', () => {
+    const previousState = { user: null, token: null, status: 'idle' };
+    const action = loginUser.fulfilled(
+      { user: mockUser, token: 'abc123' },
+      '',
+      { email: 'test@example.com', password: 'password' }
+    );
+
+    const newState = authReducer(previousState, action);
+
+    expect(newState.user).toEqual(mockUser);
+    expect(newState.token).toBe('abc123');
+    expect(newState.status).toBe('succeeded');
+  });
+});
+```
+
+## Month 6: Launch Preparation
+
+### App Store Preparation
+
+**iOS: App Store Connect**
+- Create app listing
+- Upload screenshots (multiple device sizes)
+- Write compelling description
+- Set privacy policy URL
+- Configure In-App Purchases (if applicable)
+
+**Android: Google Play Console**
+- Create store listing
+- Upload screenshots and feature graphic
+- Set content rating
+- Configure app pricing
+
+### Beta Testing with TestFlight
+
+```bash
+# iOS
+npx react-native run-ios --configuration Release
+cd ios && xcodebuild archive -workspace AppName.xcworkspace -scheme AppName
+
+# Android
+cd android && ./gradlew bundleRelease
+```
+
+### Push Notifications Setup
+
+```typescript
+// services/pushNotifications.ts
+import messaging from '@react-native-firebase/messaging';
+
+async function requestPermission() {
+  const authStatus = await messaging().requestPermission();
+  return authStatus === messaging.AuthorizationStatus.AUTHORIZED;
+}
+
+async function getFCMToken() {
+  const token = await messaging().getToken();
+  // Send token to backend
+  await api.updatePushToken(token);
+  return token;
+}
+
+messaging().onMessage(async remoteMessage => {
+  // Handle foreground notifications
+  showInAppNotification(remoteMessage);
+});
+
+messaging().setBackgroundMessageHandler(async remoteMessage => {
+  // Handle background notifications
+  console.log('Background message:', remoteMessage);
+});
+```
+
+## Team Management Lessons
+
+### Managing One Engineer
+
+**Clear Task Division**:
+- I focused on: Architecture, API integration, complex animations
+- Team member focused on: UI components, screen layouts, testing
+
+**Daily Standup Pattern** (15 minutes async):
+- What shipped yesterday
+- What's being worked on today
+- Any blockers
+
+**Code Review Process**:
+- All code reviewed before merge
+- Max 24-hour turnaround on reviews
+- Pair programming for complex features
+
+**Knowledge Sharing**:
+- Weekly tech talks (30 minutes)
+- Shared Notion documentation
+- Screen recordings for complex setups
+
+## Results
+
+### Timeline Achieved
+- **Month 1**: Foundation & architecture ✅
+- **Month 2-3**: Core features implemented ✅
+- **Month 4**: Polish & animations ✅
+- **Month 5**: Testing & bug fixes ✅
+- **Month 6**: Beta launch & investor demos ✅
+
+### Technical Metrics
+- **Crash-free rate**: 99.1%
+- **App size**: 45MB (iOS), 38MB (Android)
+- **Startup time**: 1.2s average
+- **User retention** (Day 7): 62%
+
+### Business Impact
+- Successful investor demos led to seed funding
+- 50+ beta users testing actively
+- Valuable user feedback for iteration
+- Validated product-market fit
+
+## Lessons Learned
+
+### 1. Start with TypeScript
+Type safety prevented countless bugs. Retrofitting types is much harder.
+
+### 2. Keep the Stack Simple
+Avoided adding libraries until proven necessary. Every dependency is technical debt.
+
+### 3. Test on Real Devices Early
+Simulators hide performance issues. Physical devices reveal the truth.
+
+### 4. Design for Offline First
+Network is unreliable. Cache data, queue actions, handle offline gracefully.
+
+### 5. Animation Budget Matters
+60fps animations require careful optimization. Profile early and often.
+
+### 6. State Management is Critical
+Redux centralized complex state. Would have been chaos without it.
+
+### 7. Documentation Saves Time
+Well-documented code helped onboarding and reduced questions.
+
+## Common Pitfalls Avoided
+
+### 1. Over-Engineering
+Built features users needed, not what seemed cool technically.
+
+### 2. Ignoring Platform Differences
+iOS and Android have different UX patterns. Respected both.
+
+### 3. Skipping Error Handling
+Every API call, every user action—handled errors gracefully.
+
+### 4. Poor Network Management
+Implemented retry logic, timeouts, and loading states everywhere.
+
+### 5. Forgetting Accessibility
+Added accessibility labels, screen reader support from day one.
+
+<KeyTakeaways items={[
+  '6-month MVP is achievable with focused scope and a small team of 2 engineers',
+  'TypeScript + Redux + React Navigation provides a solid, type-safe foundation',
+  'Team management and clear communication are critical for scaling velocity',
+  'Early user testing validates assumptions and prevents building the wrong features',
+  'Polish matters - smooth animations and great UX create memorable experiences',
+  'Ship incrementally to beta users for invaluable real-world feedback'
+]} />
+
+## Tech Stack Summary
+
+```json
+{
+  "framework": "React Native 0.72",
+  "language": "TypeScript 5.x",
+  "state": "Redux Toolkit",
+  "navigation": "React Navigation v6",
+  "notifications": "Twilio Conversations",
+  "animations": "Reanimated v2",
+  "storage": "AsyncStorage",
+  "monitoring": "Sentry",
+  "testing": "Jest + React Native Testing Library"
+}
+```
+
+Building an MVP is about **ruthless prioritization**. Ship the minimum viable product that validates your hypothesis, then iterate based on real user feedback.
+

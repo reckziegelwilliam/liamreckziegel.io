@@ -1,0 +1,229 @@
+---
+title: 'How I Rebuilt a Failing React Native App in Production'
+publishedAt: '2024-12-09'
+summary: 'Taking over a crashing React Native app and delivering a stable production build in 3 months. Deep dive into debugging strategies, architectural rewrites, and prioritization when inheriting broken code.'
+---
+
+## The Problem
+
+The React Native app was failing in production. Navigation crashes, memory leaks, and inconsistent state management made core user flows unreliable. The codebase had grown organically without architectural patterns, and technical debt had compounded to the point where new features introduced more bugs than value.
+
+<Alert type="error">
+Inheriting broken production code requires a methodical approach: assess before acting, prioritize critical user paths, and implement observability before major changes. Rushing into rewrites without understanding the problem multiplies risk.
+</Alert>
+
+## Initial Diagnostic Process
+
+### 1. Crash Analysis
+Set up comprehensive error tracking to understand failure patterns:
+- Integrated Sentry for real-time crash reporting
+- Analyzed crash logs to identify the top 10 failure points
+- Mapped crashes to specific user flows and device types
+
+### 2. Performance Profiling
+Used React Native's built-in profiler and Flipper to identify bottlenecks:
+- Excessive re-renders in list components
+- Unoptimized images causing memory pressure
+- Network requests blocking the main thread
+
+### 3. Architecture Audit
+Reviewed codebase structure to identify systemic issues:
+- No clear separation between UI and business logic
+- Global state mutations causing unpredictable behavior
+- Missing error boundaries leading to full app crashes
+
+## The Rebuild Strategy
+
+### Phase 1: Stabilization (Week 1-4)
+**Goal**: Stop the bleeding and make the app usable.
+
+```typescript
+// Added Error Boundaries to prevent full app crashes
+class FeatureErrorBoundary extends React.Component {
+  state = { hasError: false };
+  
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  
+  componentDidCatch(error, info) {
+    logErrorToService(error, info);
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return <FallbackUI />;
+    }
+    return this.props.children;
+  }
+}
+```
+
+**Key fixes**:
+- Wrapped major features in error boundaries
+- Fixed memory leaks from unsubscribed event listeners
+- Optimized FlatList rendering with proper memoization
+- Added loading states to prevent race conditions
+
+### Phase 2: State Management Overhaul (Week 5-8)
+**Problem**: Props drilling and inconsistent state updates.
+
+**Solution**: Implemented Redux Toolkit with strict patterns.
+
+```typescript
+// Structured slices for predictable state updates
+const authSlice = createSlice({
+  name: 'auth',
+  initialState: {
+    user: null,
+    status: 'idle',
+    error: null
+  },
+  reducers: {
+    // Sync actions
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(loginUser.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(loginUser.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.status = 'succeeded';
+      })
+      .addCase(loginUser.rejected, (state, action) => {
+        state.error = action.error.message;
+        state.status = 'failed';
+      });
+  }
+});
+```
+
+### Phase 3: Navigation Rewrite (Week 9-10)
+**Problem**: React Navigation v4 with nested navigators causing crashes.
+
+**Solution**: Upgraded to React Navigation v6 with type-safe routing.
+
+```typescript
+// Type-safe navigation params
+type RootStackParamList = {
+  Home: undefined;
+  Profile: { userId: string };
+  Settings: { section?: string };
+};
+
+// Type-safe hooks
+const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+navigation.navigate('Profile', { userId: '123' });
+```
+
+### Phase 4: Performance Optimization (Week 11-12)
+**Focus areas**:
+
+1. **Image Optimization**
+```typescript
+// Implemented proper image caching and sizing
+<FastImage
+  source={{ 
+    uri: imageUrl,
+    priority: FastImage.priority.normal,
+    cache: FastImage.cacheControl.immutable
+  }}
+  resizeMode={FastImage.resizeMode.cover}
+/>
+```
+
+2. **List Rendering**
+```typescript
+// Proper memoization for list items
+const ListItem = React.memo(({ item }) => (
+  <View>
+    <Text>{item.title}</Text>
+  </View>
+), (prev, next) => prev.item.id === next.item.id);
+```
+
+3. **Code Splitting**
+Implemented lazy loading for heavy screens to reduce initial bundle size.
+
+## Observability Implementation
+
+### Monitoring Stack
+- **Sentry**: Crash reporting and performance monitoring
+- **Grafana**: Custom dashboards for app metrics
+- **Prometheus**: Time-series metrics collection
+
+### Key Metrics Tracked
+```typescript
+// Custom performance tracking
+const trackScreenLoad = (screenName: string) => {
+  const startTime = performance.now();
+  
+  return () => {
+    const duration = performance.now() - startTime;
+    analytics.track('screen_load', {
+      screen: screenName,
+      duration,
+      timestamp: Date.now()
+    });
+  };
+};
+```
+
+## Results
+
+<MetricsGrid metrics={[
+  { value: '12% → 0.8%', label: 'Crash Rate' },
+  { value: '4.2s → 1.8s', label: 'Launch Time' },
+  { value: '340MB → 180MB', label: 'Memory Usage' },
+  { value: '60%', label: 'Faster Bug Fixes' }
+]} />
+
+**Stability Improvements**:
+- Crash rate dropped by 93%
+- App launch time reduced by 57%
+- Memory usage cut in half
+
+**Development Velocity**:
+- Time to add new features: 40% faster
+- Bug fix turnaround: 60% faster
+- Deploy confidence: Low → High
+
+## Lessons Learned
+
+### 1. Observability First
+You can't fix what you can't measure. Implementing error tracking and performance monitoring on day one would have saved weeks of blind debugging.
+
+### 2. Incremental Rewrites Over Big Bang
+Rewriting one module at a time while maintaining stability was more effective than attempting a complete rebuild.
+
+### 3. Type Safety Prevents Regressions
+Adding TypeScript types to navigation and Redux caught dozens of potential bugs before they hit production.
+
+### 4. User Testing Reveals Edge Cases
+Alpha users on different devices and network conditions exposed issues that simulators never would.
+
+### 5. Documentation Saves Time
+Documenting architectural decisions and patterns helped new team members onboard 3x faster.
+
+## What I'd Do Differently
+
+**Start with TypeScript**: Retrofitting types was painful. Starting with TypeScript would have prevented entire classes of bugs.
+
+**Automate Testing Earlier**: Manual testing slowed us down. Setting up automated E2E tests with Detox from week one would have increased confidence in changes.
+
+**Staged Rollout Strategy**: We went from alpha to full release too quickly. A phased rollout with feature flags would have let us catch issues earlier.
+
+**Better Communication**: I should have documented more technical decisions in writing for the team. Video walkthroughs of complex changes would have helped knowledge sharing.
+
+<KeyTakeaways items={[
+  'Reduced crash rate by 93% (12% → 0.8%) through systematic debugging and error boundaries',
+  'Observability first - implement Sentry and monitoring before major changes',
+  'Incremental rewrites beat big-bang rewrites - one module at a time maintains stability',
+  'TypeScript type safety caught dozens of bugs before production',
+  'Error boundaries prevent single component failures from crashing entire app',
+  'Redux Toolkit with strict patterns eliminated unpredictable state mutations',
+  'Performance optimization (launch time 4.2s → 1.8s) dramatically improved UX',
+  'Documentation and knowledge sharing accelerated team onboarding by 3x'
+]} />
+

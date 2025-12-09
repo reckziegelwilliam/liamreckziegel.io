@@ -1,0 +1,548 @@
+---
+title: 'Running a Contract Engineering Studio: 50+ Sites & 20+ Apps'
+subtitle: 'Building a Sustainable Solo/Small Team Business'
+slug: 'running-contract-engineering-studio'
+publishedAt: '2024-12-09'
+summary: 'Lessons from delivering 50+ websites and 20+ apps for SMBs and startups. Client management, tech stack choices, pricing, and scaling your studio.'
+tags: 'freelance, business, consulting, agency, client-work'
+type: 'Playbook'
+---
+
+## The Studio Model
+
+Running a contract engineering studio sits between freelancing and a traditional agency:
+
+**Not Freelance**:
+- Systematized processes
+- Reusable components and templates
+- Higher project rates
+- Productized services
+
+**Not Agency**:
+- Lean team (1-3 people)
+- Lower overhead
+- Direct client relationships
+- Technical depth over breadth
+
+## Numbers After 6+ Years
+
+<MetricsGrid metrics={[
+  { value: '50+', label: 'Websites' },
+  { value: '20+', label: 'Apps Built' },
+  { value: '$2M+', label: 'Revenue' },
+  { value: '65%', label: 'Repeat Business' }
+]} />
+
+- **Average project**: $15K-50K
+- **Team size**: 1-2 (depending on workload)
+
+<Alert type="success">
+The studio model offers the best of both worlds: freedom and flexibility of freelancing with the stability and higher rates of an agency. Perfect for technical founders who want sustainable income without managing a large team.
+</Alert>
+
+## Service Offerings
+
+### Tier 1: Website Development ($5K-15K)
+
+**Stack**: Next.js + Headless CMS + Vercel
+
+```typescript
+// Reusable Next.js template
+const siteTemplate = {
+  framework: 'Next.js 14',
+  cms: 'Sanity or Contentful',
+  hosting: 'Vercel',
+  forms: 'Resend',
+  analytics: 'Plausible',
+  styling: 'Tailwind CSS',
+};
+```
+
+**Deliverables**:
+- Custom design (Figma)
+- 5-10 page website
+- CMS integration
+- SEO optimization
+- Contact forms
+- Analytics setup
+- 30 days support
+
+**Timeline**: 3-4 weeks
+
+### Tier 2: Web Application ($15K-35K)
+
+**Stack**: Next.js + PostgreSQL + Authentication
+
+```typescript
+const appTemplate = {
+  frontend: 'Next.js with App Router',
+  backend: 'Next.js API Routes',
+  database: 'PostgreSQL (Supabase or Neon)',
+  auth: 'NextAuth.js',
+  payments: 'Stripe',
+  emails: 'Resend',
+  hosting: 'Vercel',
+};
+```
+
+**Deliverables**:
+- User authentication
+- Database design
+- Admin dashboard
+- Payment integration
+- Email notifications
+- Testing & QA
+- 60 days support
+
+**Timeline**: 6-10 weeks
+
+### Tier 3: Mobile Application ($25K-50K)
+
+**Stack**: React Native + Backend API
+
+```typescript
+const mobileTemplate = {
+  framework: 'React Native (Expo)',
+  backend: 'Next.js API or Node.js',
+  database: 'PostgreSQL',
+  auth: 'JWT tokens',
+  pushNotifications: 'Expo Notifications',
+  storage: 'AWS S3',
+  hosting: 'App Store + Google Play',
+};
+```
+
+**Deliverables**:
+- iOS + Android apps
+- Backend API
+- Push notifications
+- App Store submission
+- Admin panel
+- 90 days support
+
+**Timeline**: 10-16 weeks
+
+### Tier 4: CMS/CRM Customization ($5K-20K)
+
+Enhance existing platforms (Webflow, WordPress, HubSpot) with custom functionality.
+
+**Common Enhancements**:
+- Custom integrations (Zapier, APIs)
+- Advanced forms and workflows
+- Data visualization dashboards
+- Automated reporting
+- Third-party service connections
+
+## Tech Stack Philosophy
+
+### Core Principle: Optimize for Maintenance
+
+**Bad**: Bleeding edge tech that requires constant updates
+**Good**: Stable, well-documented frameworks with large communities
+
+### Primary Stack (2024)
+
+```typescript
+const productionStack = {
+  // Frontend
+  framework: 'Next.js 14',
+  styling: 'Tailwind CSS',
+  components: 'shadcn/ui',
+  
+  // Backend
+  api: 'Next.js API Routes or tRPC',
+  database: 'PostgreSQL (Supabase)',
+  orm: 'Drizzle or Prisma',
+  
+  // Mobile
+  mobile: 'React Native (Expo)',
+  
+  // Hosting
+  web: 'Vercel',
+  backend: 'Railway or Fly.io',
+  storage: 'AWS S3 or Cloudflare R2',
+  
+  // Services
+  auth: 'NextAuth.js or Clerk',
+  payments: 'Stripe',
+  emails: 'Resend',
+  analytics: 'Plausible',
+};
+```
+
+**Why This Stack?**
+
+1. **Developer Experience**: Fast builds, hot reload, TypeScript
+2. **Client Handoff**: Easy for other devs to maintain
+3. **Cost Effective**: Generous free tiers, predictable pricing
+4. **Performance**: Excellent Core Web Vitals out of the box
+5. **Community**: Large ecosystem, easy to hire help
+
+### Component Library Strategy
+
+Build reusable components across projects:
+
+```typescript
+// Shared component library
+const sharedComponents = [
+  'Button',
+  'Input',
+  'Modal',
+  'Card',
+  'NavBar',
+  'Footer',
+  'ContactForm',
+  'AuthForms',
+  'Dashboard',
+  'DataTable',
+  'FileUpload',
+];
+
+// Client projects use customized versions
+import { Button, Input } from '@studio/components';
+```
+
+**Benefits**:
+- Faster project delivery
+- Consistent quality
+- Easy updates across projects
+- Showcase-able portfolio
+
+## Client Management
+
+### Discovery Process
+
+**Initial Call** (30 min, free):
+- Understand the problem
+- Assess fit (technical + personal)
+- Ballpark budget discussion
+
+**Detailed Proposal** (if good fit):
+- Scope document (features, deliverables)
+- Timeline with milestones
+- Fixed price or hourly estimate
+- Payment terms (50% upfront, 50% on completion)
+
+**Contract** (always):
+- Scope of work
+- Timeline and milestones
+- Payment schedule
+- Revision policy (2-3 rounds included)
+- Post-launch support terms
+- IP assignment
+
+### Communication Cadence
+
+**During Build**:
+- **Weekly updates**: Friday email with progress + next week
+- **Demo sessions**: Every 2 weeks (Loom or call)
+- **Slack/Email**: Response within 24 hours
+
+**Post-Launch**:
+- **Support window**: 30-90 days depending on project
+- **Monthly retainer** (optional): 10 hours/month for updates
+
+### Managing Scope Creep
+
+**Strategy**: Fixed scope with change request process
+
+```typescript
+// Change request template
+interface ChangeRequest {
+  description: string;
+  reasoning: string;
+  estimatedHours: number;
+  estimatedCost: number;
+  impactOnTimeline: string;
+  clientApproval: boolean;
+}
+```
+
+**Example**:
+> "Adding user roles (admin/user/guest) was not in the original scope. This will require 12 hours ($1,800) and extend the timeline by 1 week. Please approve to proceed."
+
+## Pricing Strategy
+
+### Hourly vs Fixed Price
+
+**Hourly** ($150-250/hr):
+- Ongoing retainers
+- Undefined scope
+- Exploration/prototyping
+
+**Fixed Price** (preferred):
+- Well-defined projects
+- Predictable for client
+- Higher profit margins if efficient
+
+### Project Pricing Formula
+
+```
+Base Hours × Hourly Rate × Complexity Multiplier × Risk Buffer
+
+Example Website:
+80 hours × $175/hr × 1.2 (custom design) × 1.15 (buffer) = $19,320
+
+Round to: $19,500 or $20,000
+```
+
+**Risk Buffer**: Account for unknowns (15-25%)
+
+### Retainer Pricing
+
+**Monthly Retainer** (10-20 hours/month):
+- Updates and maintenance
+- Small feature additions
+- Bug fixes
+- Technical support
+
+**Pricing**:
+- 10 hours: $1,500/month
+- 20 hours: $2,800/month
+- Unused hours roll over (max 2 months)
+
+## Project Workflow
+
+### Phase 1: Discovery & Design (1-2 weeks)
+
+1. Requirements gathering
+2. Competitor research
+3. Information architecture
+4. Wireframes
+5. High-fidelity mockups (Figma)
+6. Client approval
+
+### Phase 2: Development (3-8 weeks)
+
+**Week 1**: Setup + Core Features
+```bash
+# Initialize project
+npx create-next-app@latest client-project --typescript --tailwind --app
+cd client-project
+git init && git add . && git commit -m "Initial commit"
+
+# Deploy staging environment
+vercel --prod=false
+
+# Share staging URL with client
+```
+
+**Weeks 2-7**: Feature development with weekly demos
+
+**Week 8**: Bug fixes, polish, testing
+
+### Phase 3: Launch (1 week)
+
+1. Final client review
+2. SEO optimization
+3. Performance testing
+4. Analytics setup
+5. Production deployment
+6. DNS configuration
+7. Post-launch monitoring
+
+### Phase 4: Support (30-90 days)
+
+- Bug fixes (covered)
+- Training (1-2 sessions)
+- Documentation
+- Handoff (if requested)
+
+## Automation & Systems
+
+### Project Template
+
+```bash
+# Starter template with everything configured
+git clone https://github.com/studio/nextjs-starter client-project
+cd client-project
+npm install
+npm run setup # Interactive setup script
+
+# Prompts for:
+# - Project name
+# - Client info
+# - Database (Y/N)
+# - Auth (Y/N)
+# - Payments (Y/N)
+# - CMS (Y/N)
+
+# Generates configured Next.js app in 5 minutes
+```
+
+### Automated Deploys
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy to Staging
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.ORG_ID }}
+          vercel-project-id: ${{ secrets.PROJECT_ID }}
+```
+
+### Client Dashboard
+
+Simple status page for all active projects:
+
+```typescript
+// dashboard.studio.com
+const projects = [
+  {
+    client: 'Client A',
+    status: 'In Development',
+    progress: 65,
+    nextMilestone: 'User dashboard complete',
+    stagingUrl: 'https://client-a.vercel.app',
+  },
+  // ...
+];
+```
+
+## Scaling Challenges
+
+### Problem 1: Too Much Work
+
+**Solutions**:
+1. **Raise rates**: Fewer clients, same revenue
+2. **Hire contractor**: For overflow work
+3. **Narrow focus**: Say no to non-ideal projects
+
+### Problem 2: Inconsistent Revenue
+
+**Solutions**:
+1. **Retainer clients**: Predictable monthly income
+2. **Pipeline management**: Always be closing next project
+3. **Savings buffer**: 3-6 months runway
+
+### Problem 3: Burnout
+
+**Solutions**:
+1. **Project limits**: Max 2-3 active projects
+2. **Downtime**: Block 1-2 weeks between projects
+3. **Productize**: Turn custom work into SaaS (long-term)
+
+## Marketing & Lead Generation
+
+### What Works
+
+**1. Referrals** (60% of leads):
+- Happy clients refer friends
+- Incentivize with discount on next project
+- Ask explicitly after successful launch
+
+**2. Portfolio Site** (25% of leads):
+- Case studies with results
+- Tech stack highlighted
+- Clear pricing/contact CTA
+
+**3. LinkedIn** (10% of leads):
+- Share project updates
+- Write technical posts
+- Engage with target audience
+
+**4. Partnerships** (5% of leads):
+- Design agencies need developers
+- Marketing agencies need technical execution
+- Revenue share or referral fee
+
+### What Doesn't Work (for me)
+
+- ❌ Cold outreach
+- ❌ Upwork/Fiverr (race to bottom)
+- ❌ Pay-per-click ads
+- ❌ Social media ads
+
+## Tools & Software
+
+### Development
+- **Editor**: VS Code
+- **Design**: Figma
+- **Version Control**: GitHub
+- **Hosting**: Vercel, Railway, Fly.io
+- **Database**: Supabase, Neon
+
+### Business
+- **Contracts**: PandaDoc
+- **Invoicing**: Stripe Invoicing
+- **Time Tracking**: Toggl
+- **Project Management**: Linear or Notion
+- **Communication**: Slack, Email (Hey.com)
+
+### Cost: ~$150/month total
+
+## Financial Model
+
+### Revenue (Example Year)
+
+```
+10 websites @ $12K avg = $120K
+6 web apps @ $25K avg = $150K
+2 mobile apps @ $35K avg = $70K
+4 retainer clients @ $2K/mo = $96K
+
+Total: $436K revenue
+```
+
+### Expenses
+
+```
+Software/Tools: $1,800/year
+Contractors (occasional): $30K/year
+Healthcare: $8K/year
+Taxes (self-employment): $90K/year
+Office/Equipment: $3K/year
+
+Total: ~$133K expenses
+```
+
+### Net: ~$303K (before personal income tax)
+
+**Effective Rate**: $250/hr working 30 hours/week
+
+## Lessons Learned
+
+### 1. Specialize Your Stack
+Mastering one stack beats being mediocre at five. Clients pay for expertise.
+
+### 2. Price on Value, Not Hours
+A $20K website that generates $200K in leads is a steal.
+
+### 3. Good Clients > More Clients
+One great client worth more than five difficult ones. Fire bad clients.
+
+### 4. Document Everything
+Saves hours explaining the same thing. Clients appreciate it.
+
+### 5. Automate Ruthlessly
+Starter templates, deployment scripts, email templates—automate repetitive work.
+
+### 6. Build Relationships
+Repeat business is easier than new business. Stay in touch.
+
+### 7. Know When to Say No
+Misaligned projects drain energy. Trust your gut.
+
+<KeyTakeaways items={[
+  'Studio model combines freelancing freedom with agency stability and rates',
+  'Consistent tech stack (Next.js, React Native) enables speed and premium quality',
+  'Fixed pricing beats hourly rates for defined projects - price on value delivered',
+  'Strong client relationships drive 65% repeat business - easier than new client acquisition',
+  'Systems and automation are critical to scaling beyond 1-2 person team',
+  'Specialization in specific technologies commands 2-3x premium rates',
+  'Sustainable 30hr/week pace beats burnout-inducing growth',
+  'Well-run studio generates $300K-500K/year net with excellent work-life balance'
+]} />
+
+**Bottom line**: A well-run contract engineering studio can generate $300K-500K/year net income with a small team while maintaining work-life balance and technical excellence.
+

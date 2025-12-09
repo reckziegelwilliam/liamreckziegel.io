@@ -1,0 +1,729 @@
+---
+title: 'AWS Lambda & DynamoDB Patterns for Production'
+subtitle: 'Serverless Architecture Best Practices'
+slug: 'aws-lambda-dynamodb-patterns'
+publishedAt: '2024-12-09'
+summary: 'Production-tested patterns for building scalable serverless applications with AWS Lambda and DynamoDB. Schema design, optimization, and cost control.'
+tags: 'aws, lambda, dynamodb, serverless, architecture'
+type: 'Playbook'
+---
+
+## Why Serverless?
+
+After building multiple production applications on AWS Lambda + DynamoDB, the value proposition is clear:
+
+**Pros**:
+- Zero server management
+- Automatic scaling (0 to thousands of requests)
+- Pay-per-use pricing (idle = $0)
+- Built-in fault tolerance
+- Global distribution (if needed)
+
+**Cons**:
+- Cold starts (mitigatable)
+- Stateless execution model
+- Vendor lock-in
+- Learning curve for NoSQL
+
+**When to Use**:
+- Variable/unpredictable traffic
+- Event-driven architecture
+- API backends
+- Data processing pipelines
+- Cost-sensitive applications
+
+## DynamoDB Schema Design Patterns
+
+<Alert type="info">
+DynamoDB schema design is fundamentally different from SQL databases. Plan your access patterns first, then design your schema around them. Changing schemas later is difficult and expensive.
+</Alert>
+
+### Pattern 1: Single Table Design
+
+**Concept**: Store multiple entity types in one table using composite keys.
+
+<Comparison 
+  labels={{ before: 'Traditional Multi-Table', after: 'Single Table Design' }}
+  before={
+    <>
+      <p><strong>Separate tables for each entity:</strong></p>
+      <ul>
+        <li>Users table: userId, name, email</li>
+        <li>Posts table: postId, userId, title</li>
+        <li>Comments table: commentId, postId, text</li>
+      </ul>
+      <p><strong>Issues:</strong></p>
+      <ul>
+        <li>Multiple queries needed</li>
+        <li>Higher costs (per table)</li>
+        <li>No cross-entity transactions</li>
+      </ul>
+    </>
+  }
+  after={
+    <>
+      <p><strong>Single AppTable with composite keys:</strong></p>
+      <ul>
+        <li>User: PK=USER#123, SK=PROFILE</li>
+        <li>Post: PK=USER#123, SK=POST#456</li>
+        <li>Comment: PK=POST#456, SK=COMMENT#789</li>
+      </ul>
+      <p><strong>Benefits:</strong></p>
+      <ul>
+        <li>Single query for related data</li>
+        <li>Lower costs</li>
+        <li>Atomic transactions</li>
+      </ul>
+    </>
+  }
+/>
+
+```typescript
+// Single table design
+AppTable: { PK, SK, ...attributes }
+
+// User entity
+PK: USER#123
+SK: PROFILE
+attributes: { name, email, createdAt }
+
+// Post entity
+PK: USER#123
+SK: POST#456
+attributes: { title, content, publishedAt }
+
+// Comment entity
+PK: POST#456
+SK: COMMENT#789
+attributes: { text, authorId, createdAt }
+```
+
+**Benefits**:
+- Single query fetches related data
+- Reduced costs (fewer tables)
+- Atomic transactions across entities
+- Easier to reason about access patterns
+
+**Schema Implementation**:
+
+```typescript
+interface DynamoDBRecord {
+  PK: string;        // Partition Key
+  SK: string;        // Sort Key
+  GSI1PK?: string;   // Global Secondary Index 1 PK
+  GSI1SK?: string;   // Global Secondary Index 1 SK
+  EntityType: string;
+  [key: string]: any;
+}
+
+// User record
+const userRecord: DynamoDBRecord = {
+  PK: 'USER#abc123',
+  SK: 'PROFILE',
+  GSI1PK: 'EMAIL#user@example.com',
+  GSI1SK: 'USER#abc123',
+  EntityType: 'User',
+  name: 'John Doe',
+  email: 'user@example.com',
+  createdAt: '2024-01-01T00:00:00Z',
+};
+
+// Post record
+const postRecord: DynamoDBRecord = {
+  PK: 'USER#abc123',
+  SK: 'POST#2024-01-15#xyz789',
+  GSI1PK: 'POST#xyz789',
+  GSI1SK: '2024-01-15T12:00:00Z',
+  EntityType: 'Post',
+  title: 'My First Post',
+  content: 'Hello world',
+  status: 'published',
+};
+```
+
+### Pattern 2: Inverted Indexes with GSI
+
+**Problem**: Query data in multiple ways without scanning.
+
+**Solution**: Use Global Secondary Indexes (GSI) to invert query patterns.
+
+```typescript
+// Base table: Query user's posts
+PK: USER#123
+SK: POST#456
+
+// GSI: Query post's details
+GSI1PK: POST#456
+GSI1SK: USER#123
+
+// GSI2: Query posts by status
+GSI2PK: STATUS#published
+GSI2SK: 2024-01-15#POST#456
+```
+
+**Implementation**:
+
+```typescript
+// Query user's posts
+const getUserPosts = async (userId: string) => {
+  const result = await docClient.query({
+    TableName: TABLE_NAME,
+    KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+    ExpressionAttributeValues: {
+      ':pk': `USER#${userId}`,
+      ':sk': 'POST#',
+    },
+  });
+  return result.Items;
+};
+
+// Query post details via GSI
+const getPostById = async (postId: string) => {
+  const result = await docClient.query({
+    TableName: TABLE_NAME,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'GSI1PK = :pk',
+    ExpressionAttributeValues: {
+      ':pk': `POST#${postId}`,
+    },
+  });
+  return result.Items[0];
+};
+
+// Query published posts via GSI2
+const getPublishedPosts = async (limit: number = 20) => {
+  const result = await docClient.query({
+    TableName: TABLE_NAME,
+    IndexName: 'GSI2',
+    KeyConditionExpression: 'GSI2PK = :status',
+    ExpressionAttributeValues: {
+      ':status': 'STATUS#published',
+    },
+    ScanIndexForward: false, // Descending order
+    Limit: limit,
+  });
+  return result.Items;
+};
+```
+
+### Pattern 3: Time Series Data with TTL
+
+**Use Case**: Store events with automatic expiration.
+
+```typescript
+interface EventRecord {
+  PK: string;        // USER#123
+  SK: string;        // EVENT#2024-01-15T12:00:00Z#abc
+  ttl: number;       // Unix timestamp for auto-deletion
+  EventType: string;
+  data: any;
+}
+
+const createEvent = async (userId: string, eventType: string, data: any) => {
+  const timestamp = new Date().toISOString();
+  const ttl = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60); // 30 days
+
+  await docClient.put({
+    TableName: TABLE_NAME,
+    Item: {
+      PK: `USER#${userId}`,
+      SK: `EVENT#${timestamp}#${uuid()}`,
+      ttl,
+      EventType: eventType,
+      data,
+      createdAt: timestamp,
+    },
+  });
+};
+```
+
+**TTL Configuration**:
+```bash
+# Enable TTL on the 'ttl' attribute
+aws dynamodb update-time-to-live \
+  --table-name YourTable \
+  --time-to-live-specification "Enabled=true, AttributeName=ttl"
+```
+
+## Lambda Function Patterns
+
+### Pattern 1: API Gateway + Lambda
+
+**Architecture**:
+```
+API Gateway → Lambda → DynamoDB
+```
+
+**Implementation**:
+
+```typescript
+// handler.ts
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+
+// Initialize outside handler for connection reuse
+const client = new DynamoDBClient({});
+const docClient = DynamoDBDocumentClient.from(client);
+
+export const handler = async (
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> => {
+  // CORS headers
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+  };
+
+  try {
+    // Parse request
+    const body = JSON.parse(event.body || '{}');
+    const userId = event.requestContext.authorizer?.claims?.sub;
+
+    // Validate
+    if (!userId) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ error: 'Unauthorized' }),
+      };
+    }
+
+    // Business logic
+    const result = await docClient.send(
+      new PutCommand({
+        TableName: process.env.TABLE_NAME,
+        Item: {
+          PK: `USER#${userId}`,
+          SK: `POST#${Date.now()}`,
+          ...body,
+          createdAt: new Date().toISOString(),
+        },
+      })
+    );
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true }),
+    };
+
+  } catch (error) {
+    console.error('Error:', error);
+
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        error: 'Internal server error',
+        message: error.message,
+      }),
+    };
+  }
+};
+```
+
+### Pattern 2: DynamoDB Streams + Lambda
+
+**Use Case**: React to database changes (audit logs, cache invalidation, etc.)
+
+**Architecture**:
+```
+DynamoDB → DynamoDB Streams → Lambda → S3/SNS/etc
+```
+
+**Implementation**:
+
+```typescript
+// streamHandler.ts
+import { DynamoDBStreamEvent } from 'aws-lambda';
+import { unmarshall } from '@aws-sdk/util-dynamodb';
+
+export const handler = async (event: DynamoDBStreamEvent) => {
+  for (const record of event.Records) {
+    console.log('Stream record:', record);
+
+    if (record.eventName === 'INSERT') {
+      const newItem = unmarshall(record.dynamodb!.NewImage!);
+      await handleNewItem(newItem);
+    }
+
+    if (record.eventName === 'MODIFY') {
+      const oldItem = unmarshall(record.dynamodb!.OldImage!);
+      const newItem = unmarshall(record.dynamodb!.NewImage!);
+      await handleUpdate(oldItem, newItem);
+    }
+
+    if (record.eventName === 'REMOVE') {
+      const oldItem = unmarshall(record.dynamodb!.OldImage!);
+      await handleDelete(oldItem);
+    }
+  }
+};
+
+async function handleNewItem(item: any) {
+  // Send notification, update cache, etc.
+  console.log('New item created:', item);
+}
+```
+
+### Pattern 3: Event-Driven with EventBridge
+
+**Architecture**:
+```
+Lambda → EventBridge → Multiple Lambdas
+```
+
+**Implementation**:
+
+```typescript
+// publisher.ts
+import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
+
+const eventBridge = new EventBridgeClient({});
+
+export async function publishEvent(eventType: string, data: any) {
+  await eventBridge.send(
+    new PutEventsCommand({
+      Entries: [
+        {
+          Source: 'app.orders',
+          DetailType: eventType,
+          Detail: JSON.stringify(data),
+          EventBusName: process.env.EVENT_BUS_NAME,
+        },
+      ],
+    })
+  );
+}
+
+// Usage
+await publishEvent('OrderPlaced', {
+  orderId: '123',
+  userId: 'abc',
+  amount: 99.99,
+});
+```
+
+```typescript
+// subscriber.ts
+import { EventBridgeEvent } from 'aws-lambda';
+
+export const handler = async (event: EventBridgeEvent<string, any>) => {
+  const { detail, 'detail-type': detailType } = event;
+
+  if (detailType === 'OrderPlaced') {
+    await sendConfirmationEmail(detail.userId, detail.orderId);
+    await updateInventory(detail.orderId);
+    await notifyWarehouse(detail.orderId);
+  }
+};
+```
+
+## Performance Optimization
+
+### 1. Minimize Cold Starts
+
+**Problem**: First request takes 1-3 seconds.
+
+**Solutions**:
+
+```typescript
+// A. Keep bundle size small
+// Use esbuild or webpack to bundle only what's needed
+
+// B. Use Provisioned Concurrency (costs money)
+// terraform/lambda.tf
+resource "aws_lambda_provisioned_concurrency_config" "api" {
+  function_name = aws_lambda_function.api.function_name
+  provisioned_concurrent_executions = 5
+}
+
+// C. Keep functions warm (free tier friendly)
+// CloudWatch Event Rule to ping every 5 minutes
+const keepWarm = (event: any) => {
+  if (event.source === 'aws.events') {
+    return { statusCode: 200, body: 'Warm' };
+  }
+  // Normal handler logic
+};
+```
+
+### 2. Connection Reuse
+
+```typescript
+// ❌ Bad: Create client inside handler
+export const handler = async () => {
+  const client = new DynamoDBClient({}); // New connection every time!
+  // ...
+};
+
+// ✅ Good: Reuse connection across invocations
+const client = new DynamoDBClient({});
+const docClient = DynamoDBDocumentClient.from(client);
+
+export const handler = async () => {
+  // Reuses existing connection
+  await docClient.send(new GetCommand({...}));
+};
+```
+
+### 3. Batch Operations
+
+```typescript
+// ❌ Bad: Individual writes
+for (const item of items) {
+  await docClient.send(new PutCommand({ TableName, Item: item }));
+}
+
+// ✅ Good: Batch write (25 items at a time)
+import { BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
+
+const chunks = chunkArray(items, 25);
+
+for (const chunk of chunks) {
+  await docClient.send(
+    new BatchWriteCommand({
+      RequestItems: {
+        [TableName]: chunk.map(item => ({
+          PutRequest: { Item: item },
+        })),
+      },
+    })
+  );
+}
+```
+
+### 4. Parallel Queries
+
+```typescript
+// ❌ Bad: Sequential queries
+const user = await getUser(userId);
+const posts = await getUserPosts(userId);
+const comments = await getUserComments(userId);
+
+// ✅ Good: Parallel queries
+const [user, posts, comments] = await Promise.all([
+  getUser(userId),
+  getUserPosts(userId),
+  getUserComments(userId),
+]);
+```
+
+## Cost Optimization
+
+### DynamoDB Pricing Modes
+
+**On-Demand** (default):
+- Pay per request
+- Good for: Unpredictable traffic
+- Cost: $1.25 per million reads, $6.25 per million writes
+
+**Provisioned**:
+- Pay for capacity (read/write units)
+- Good for: Predictable, consistent traffic
+- Cost: $0.00065 per RCU/hour, $0.00325 per WCU/hour
+
+**Auto-scaling provisioned** (best of both):
+
+```typescript
+// terraform/dynamodb.tf
+resource "aws_appautoscaling_target" "dynamodb_table_read_target" {
+  max_capacity       = 100
+  min_capacity       = 5
+  resource_id        = "table/${aws_dynamodb_table.main.name}"
+  scalable_dimension = "dynamodb:table:ReadCapacityUnits"
+  service_namespace  = "dynamodb"
+}
+
+resource "aws_appautoscaling_policy" "dynamodb_table_read_policy" {
+  name               = "DynamoDBReadCapacityUtilization:${aws_appautoscaling_target.dynamodb_table_read_target.resource_id}"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.dynamodb_table_read_target.resource_id
+  scalable_dimension = aws_appautoscaling_target.dynamodb_table_read_target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.dynamodb_table_read_target.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "DynamoDBReadCapacityUtilization"
+    }
+    target_value = 70.0
+  }
+}
+```
+
+### Lambda Cost Optimization
+
+**Memory = Speed = Cost**:
+- More memory = faster CPU = faster execution
+- Sometimes 1024MB @ 100ms cheaper than 512MB @ 200ms
+
+**Find optimal memory**:
+
+```bash
+# Use AWS Lambda Power Tuning
+# https://github.com/alexcasalboni/aws-lambda-power-tuning
+
+npm install -g lambda-power-tuning
+lambda-power-tuning --function-name my-function
+```
+
+**Example Results**:
+- 512MB: $0.0000083 per invocation (200ms avg)
+- 1024MB: $0.0000079 per invocation (100ms avg) ← Winner
+- 2048MB: $0.0000112 per invocation (60ms avg)
+
+## Monitoring & Debugging
+
+### CloudWatch Insights Queries
+
+```sql
+-- Find slowest invocations
+fields @timestamp, @duration
+| filter @type = "REPORT"
+| sort @duration desc
+| limit 20
+
+-- Find errors
+fields @timestamp, @message
+| filter @type = "ERROR"
+| stats count() by bin(5m)
+
+-- Cold starts
+fields @timestamp, @duration, @initDuration
+| filter @type = "REPORT" and @initDuration > 0
+| stats count() as coldStarts by bin(1h)
+```
+
+### X-Ray Tracing
+
+```typescript
+import AWSXRay from 'aws-xray-sdk-core';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+
+// Wrap AWS SDK calls
+const client = AWSXRay.captureAWSv3Client(new DynamoDBClient({}));
+
+// Custom subsegments
+export const handler = async (event) => {
+  const segment = AWSXRay.getSegment();
+  
+  const subsegment = segment.addNewSubsegment('business-logic');
+  try {
+    // Your logic here
+    subsegment.close();
+  } catch (error) {
+    subsegment.addError(error);
+    subsegment.close();
+    throw error;
+  }
+};
+```
+
+## Infrastructure as Code
+
+### Serverless Framework Example
+
+```yaml
+# serverless.yml
+service: my-api
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  environment:
+    TABLE_NAME: ${self:service}-${self:provider.stage}
+
+functions:
+  api:
+    handler: handler.handler
+    events:
+      - httpApi:
+          path: /items
+          method: post
+      - httpApi:
+          path: /items/{id}
+          method: get
+
+resources:
+  Resources:
+    ItemsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.TABLE_NAME}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+```
+
+## Common Pitfalls
+
+### 1. Hot Partitions
+**Problem**: All traffic hitting one partition key.
+
+**Solution**: Add randomness or use composite keys.
+
+```typescript
+// ❌ Bad: Single hot partition
+PK: "GLOBAL"
+SK: "USER#123"
+
+// ✅ Good: Distributed partitions
+PK: `SHARD#${userId % 10}` // 10 partitions
+SK: "USER#123"
+```
+
+### 2. Scan Operations
+**Problem**: Scanning entire table is slow and expensive.
+
+**Solution**: Design access patterns with queries.
+
+### 3. Large Items
+**Limit**: 400KB per item
+
+**Solution**: Store large data in S3, reference in DynamoDB.
+
+```typescript
+// Store large content in S3
+const s3Key = `content/${userId}/${postId}.json`;
+await s3.putObject({
+  Bucket: BUCKET_NAME,
+  Key: s3Key,
+  Body: JSON.stringify(largeContent),
+});
+
+// Store reference in DynamoDB
+await docClient.put({
+  TableName: TABLE_NAME,
+  Item: {
+    PK: `USER#${userId}`,
+    SK: `POST#${postId}`,
+    s3Key,
+    title: 'Post title',
+  },
+});
+```
+
+<KeyTakeaways items={[
+  'Single table design reduces costs and improves performance - plan access patterns first',
+  'GSIs enable flexible query patterns without expensive scans',
+  'Lambda cold starts are manageable with provisioned concurrency and proper optimization',
+  'Connection reuse is critical for Lambda performance - initialize outside the handler',
+  'Auto-scaling provisioned capacity balances cost and performance effectively',
+  'Event-driven architecture with EventBridge scales effortlessly to millions of events',
+  'Monitor everything with CloudWatch and X-Ray for production visibility',
+  'Infrastructure as Code (Serverless Framework, SAM, or Terraform) is essential for reproducibility'
+]} />
+
+Serverless with Lambda + DynamoDB can handle massive scale at low cost—if you design it right from the start.
+

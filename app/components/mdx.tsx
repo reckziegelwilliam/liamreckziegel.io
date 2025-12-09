@@ -113,6 +113,164 @@ function ConsCard({ title, cons }) {
   );
 }
 
+function Alert({ type = 'info', children }) {
+  const styles = {
+    info: 'border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 text-blue-900 dark:text-blue-100',
+    warning: 'border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-100',
+    success: 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-100',
+    error: 'border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 text-red-900 dark:text-red-100'
+  };
+  
+  return (
+    <div className={`border-l-4 rounded-r-lg px-6 py-4 my-6 ${styles[type]}`}>
+      {children}
+    </div>
+  );
+}
+
+function MetricsGrid({ metrics }) {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-8 not-prose">
+      {metrics.map((metric, idx) => (
+        <div key={idx} className="bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-800 rounded-xl p-6 text-center border border-neutral-200 dark:border-neutral-700">
+          <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-amber-500">
+            {metric.value}
+          </div>
+          <div className="text-sm text-neutral-600 dark:text-neutral-400 mt-2">
+            {metric.label}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Comparison({ before, after, labels = { before: 'Before', after: 'After' } }) {
+  return (
+    <div className="grid md:grid-cols-2 gap-6 my-8 not-prose">
+      <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg p-6">
+        <div className="text-sm font-medium text-red-600 dark:text-red-400 mb-4">
+          {labels.before}
+        </div>
+        <div className="prose dark:prose-invert max-w-none">{before}</div>
+      </div>
+      <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 rounded-lg p-6">
+        <div className="text-sm font-medium text-emerald-600 dark:text-emerald-400 mb-4">
+          {labels.after}
+        </div>
+        <div className="prose dark:prose-invert max-w-none">{after}</div>
+      </div>
+    </div>
+  );
+}
+
+function TimelineStep({ number, title, children }) {
+  return (
+    <div className="flex gap-4 mb-8">
+      <div className="flex-shrink-0">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-amber-500 flex items-center justify-center text-white font-bold">
+          {number}
+        </div>
+      </div>
+      <div className="flex-1">
+        <h4 className="font-semibold text-lg mb-2 text-neutral-900 dark:text-neutral-100">{title}</h4>
+        <div className="text-neutral-600 dark:text-neutral-400">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function CodeDiff({ before, after, language = 'typescript' }) {
+  return (
+    <div className="grid md:grid-cols-2 gap-4 my-6 not-prose">
+      <div>
+        <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-2 flex items-center gap-2">
+          <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+          Before
+        </div>
+        <pre className="bg-neutral-900 rounded-lg p-4 overflow-x-auto border border-neutral-800">
+          <code className="text-sm text-neutral-100">{before}</code>
+        </pre>
+      </div>
+      <div>
+        <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-2 flex items-center gap-2">
+          <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+          After
+        </div>
+        <pre className="bg-neutral-900 rounded-lg p-4 overflow-x-auto border border-neutral-800">
+          <code className="text-sm text-neutral-100">{after}</code>
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+function KeyTakeaways({ items }) {
+  return (
+    <div className="bg-gradient-to-br from-cyan-50 to-amber-50 dark:from-cyan-950/20 dark:to-amber-950/20 border-2 border-cyan-200 dark:border-cyan-900 rounded-2xl p-6 my-8">
+      <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-neutral-900 dark:text-neutral-100">
+        <span className="text-2xl">💡</span>
+        Key Takeaways
+      </h3>
+      <ul className="space-y-3">
+        {items.map((item, idx) => (
+          <li key={idx} className="flex items-start gap-3">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-amber-500 text-white text-xs flex items-center justify-center font-bold mt-0.5">
+              {idx + 1}
+            </span>
+            <span className="flex-1 text-neutral-700 dark:text-neutral-300">{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ImageGrid({ images }) {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 my-8 not-prose">
+      {images.map((img, idx) => (
+        <figure key={idx} className="group">
+          <div className="relative aspect-video overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
+            <Image
+              src={img.src}
+              alt={img.alt}
+              fill
+              className="object-cover transition-transform group-hover:scale-105"
+            />
+          </div>
+          {img.caption && (
+            <figcaption className="mt-2 text-sm text-neutral-600 dark:text-neutral-400 text-center">
+              {img.caption}
+            </figcaption>
+          )}
+        </figure>
+      ))}
+    </div>
+  );
+}
+
+function CodeBlock({ children, filename, language = 'typescript' }) {
+  return (
+    <div className="my-6 rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 not-prose">
+      {filename && (
+        <div className="bg-neutral-100 dark:bg-neutral-900 px-4 py-2 text-sm text-neutral-600 dark:text-neutral-400 font-mono border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+          <span>{filename}</span>
+          <button 
+            className="text-xs hover:text-cyan-500 transition-colors"
+            onClick={() => navigator.clipboard.writeText(children)}
+          >
+            Copy
+          </button>
+        </div>
+      )}
+      <pre className="p-4 overflow-x-auto bg-neutral-50 dark:bg-neutral-900">
+        <code className={`language-${language}`}>{children}</code>
+      </pre>
+    </div>
+  );
+}
+
 function Code({ children, ...props }) {
   let codeHTML = highlight(children);
   return <code dangerouslySetInnerHTML={{ __html: codeHTML }} {...props} />;
@@ -163,6 +321,14 @@ let components = {
   code: Code,
   Table,
   LiveCode,
+  Alert,
+  MetricsGrid,
+  Comparison,
+  TimelineStep,
+  CodeDiff,
+  KeyTakeaways,
+  ImageGrid,
+  CodeBlock,
 };
 
 export function CustomMDX(props) {

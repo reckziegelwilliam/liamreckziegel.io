@@ -1,4 +1,4 @@
-import { getPostById, getPostBySlug } from '@/app/db/posts';
+import { getPostById, getPostBySlugAdmin } from '@/app/db/posts';
 import { notFound } from 'next/navigation';
 import EditPostForm from './form';
 
@@ -22,7 +22,7 @@ export default async function EditPostPage({ params }: PageProps) {
   if (!isNaN(postId)) {
     post = await getPostById(postId);
   } else {
-    post = await getPostBySlug(params.slug);
+    post = await getPostBySlugAdmin(params.slug);
   }
   
   if (!post) {

@@ -148,3 +148,62 @@ table {
 .title {
   text-wrap: balance;
 }
+
+/* Enhanced Typography */
+
+/* First paragraph styling - larger, more prominent */
+.prose > p:first-of-type {
+  @apply text-lg text-neutral-700 dark:text-neutral-300 leading-relaxed;
+}
+
+/* Enhanced blockquotes with gradient accent */
+.prose blockquote {
+  @apply border-l-4 border-cyan-500 bg-gradient-to-r from-cyan-50/50 to-transparent dark:from-cyan-950/30 dark:to-transparent pl-6 py-4 my-8 not-italic;
+}
+
+.prose blockquote p {
+  @apply text-neutral-700 dark:text-neutral-300;
+}
+
+/* Section dividers with gradient */
+.prose hr {
+  @apply border-0 my-12 h-px;
+  background: linear-gradient(to right, transparent, currentColor, transparent);
+}
+
+/* Better heading spacing and visual hierarchy */
+.prose h2 {
+  @apply text-2xl md:text-3xl mt-12 mb-6 relative;
+}
+
+.prose h2::before {
+  content: '';
+  @apply absolute -left-4 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full hidden md:block;
+  background: linear-gradient(to bottom, #00D9FF, #FFB84D);
+}
+
+.prose h3 {
+  @apply text-xl md:text-2xl mt-8 mb-4;
+}
+
+.prose h4 {
+  @apply text-lg md:text-xl mt-6 mb-3;
+}
+
+/* Better paragraph spacing */
+.prose p {
+  @apply leading-relaxed;
+}
+
+/* Enhanced lists */
+.prose ul {
+  @apply space-y-2;
+}
+
+.prose ol {
+  @apply space-y-2;
+}
+
+.prose li {
+  @apply leading-relaxed;
+}

@@ -204,6 +204,14 @@ export default function EditPostForm({ post }: EditPostFormProps) {
                 )}
                 {post.status === 'published' ? 'Update' : 'Publish'}
               </button>
+              <Link
+                href={`/admin/blog/preview/${formData.slug}`}
+                target="_blank"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors font-medium"
+              >
+                <Eye className="w-4 h-4" />
+                Preview
+              </Link>
               {post.status === 'published' && (
                 <button
                   onClick={() => handleSubmit('draft')}

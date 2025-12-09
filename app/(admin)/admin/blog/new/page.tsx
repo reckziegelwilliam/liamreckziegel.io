@@ -170,6 +170,17 @@ export default function NewPostPage() {
                 )}
                 Publish
               </button>
+              {formData.slug && (
+                <a
+                  href={`/admin/blog/preview/${formData.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#4F46E5] transition-colors font-medium"
+                >
+                  <Eye className="w-4 h-4" />
+                  Preview
+                </a>
+              )}
             </div>
           </div>
 

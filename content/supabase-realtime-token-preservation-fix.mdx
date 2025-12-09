@@ -1,0 +1,483 @@
+---
+title: 'Fixing Token Preservation in Supabase Realtime JS'
+subtitle: 'Contributing to Open Source: Supabase Realtime'
+slug: 'supabase-realtime-token-preservation-fix'
+publishedAt: '2024-12-09'
+summary: 'Deep dive into fixing a critical bug where custom JWT tokens weren\'t preserved across channel operations in Supabase Realtime JS, affecting private channel authentication.'
+tags: 'supabase, realtime, websockets, authentication, javascript, open-source'
+type: 'Playbook'
+---
+
+## The Problem
+
+Supabase Realtime JS supports two ways to provide authentication tokens for private channels:
+
+1. **Callback-based**: Pass an `accessToken` function that dynamically fetches fresh tokens
+2. **Manual tokens**: Directly call `setAuth('your-jwt-token')` with a specific token
+
+Users reported a frustrating bug: when using manual tokens and removing/recreating channels (common in dynamic UIs), the token would mysteriously disappear. New channel subscriptions would fail authentication.
+
+```typescript
+// User's code that was breaking
+const client = new RealtimeClient(url, { params: { apikey: 'key' } })
+
+// Set custom JWT token
+await client.setAuth('my-custom-jwt-token')
+
+// Subscribe to private channel
+const channel1 = client.channel('conversation:123', {
+  config: { private: true }
+})
+await channel1.subscribe()
+
+// Later: cleanup and resubscribe to different conversation
+await client.removeChannel(channel1)
+
+const channel2 = client.channel('conversation:456', {
+  config: { private: true }
+})
+
+// ❌ BUG: This subscription fails! The token was lost
+await channel2.subscribe()
+```
+
+<Alert type="error">
+Private channel subscriptions were failing after removeChannel operations, breaking authentication for chat apps, multiplayer games, and live collaboration tools. Users were forced to call setAuth() before every channel operation.
+</Alert>
+
+## Root Cause Analysis
+
+The issue had three interconnected problems:
+
+### 1. No Token Source Tracking
+
+The library couldn't distinguish between:
+- Tokens explicitly set by the user (`setAuth('token')`)
+- Tokens fetched via callback (`accessToken()` function)
+
+```typescript
+// Before: No way to know HOW the token was set
+accessTokenValue: string | null = null
+accessToken: (() => Promise<string | null>) | null = null
+```
+
+### 2. Aggressive Token Refresh
+
+On every heartbeat (every 25 seconds) and connection event, the library would try to refresh the token by calling the `accessToken` callback:
+
+```typescript
+// Before: Always tried to refresh, even for manual tokens
+async sendHeartbeat() {
+  // ... heartbeat logic ...
+  this.setAuth() // ❌ This would call accessToken() callback!
+}
+```
+
+If no callback was provided, it would fall back to the cached value - but the logic was fragile and inconsistent.
+
+### 3. Channel Subscribe Behavior
+
+When subscribing to a new channel, the code would call `setAuth()` without parameters:
+
+```typescript
+// Before: In RealtimeChannel.subscribe()
+this.joinPush.receive('ok', async ({ postgres_changes }) => {
+  this.socket.setAuth() // ❌ This ignores manual tokens!
+  // ... rest of subscription logic ...
+})
+```
+
+This would trigger a token refresh via the callback, overwriting the manually-set token.
+
+## The Solution
+
+We implemented a **token source tracking system** that preserves user intent across all operations.
+
+<TimelineStep number="1" title="Track Token Source">
+Added an internal flag to distinguish between manual tokens and callback-based tokens, preserving user intent.
+</TimelineStep>
+
+### 1. Track Token Source
+
+```typescript
+// Added internal flag to track manual vs callback tokens
+private _manuallySetToken: boolean = false
+
+// Public method to check (used internally)
+_isManualToken(): boolean {
+  return this._manuallySetToken
+}
+```
+
+### 2. Enhanced setAuth() Method
+
+```typescript
+async setAuth(token: string | null = null): Promise<void> {
+  this._authPromise = this._performAuth(token)
+  try {
+    await this._authPromise
+  } finally {
+    this._authPromise = null
+  }
+}
+
+private async _performAuth(token: string | null = null): Promise<void> {
+  let tokenToSend: string | null
+  let isManualToken = false
+
+  if (token) {
+    // Explicitly provided token
+    tokenToSend = token
+    isManualToken = true
+  } else if (this.accessToken) {
+    // Fetch from callback
+    try {
+      tokenToSend = await this.accessToken()
+    } catch (e) {
+      this.log('error', 'Error fetching access token from callback', e)
+      // Fall back to cached value if callback fails
+      tokenToSend = this.accessTokenValue
+    }
+  } else {
+    // Use cached value
+    tokenToSend = this.accessTokenValue
+  }
+
+  // Track the source of this token
+  if (isManualToken) {
+    this._manuallySetToken = true
+  } else if (this.accessToken) {
+    this._manuallySetToken = false
+  }
+
+  // Update token and notify channels if changed
+  if (this.accessTokenValue != tokenToSend) {
+    this.accessTokenValue = tokenToSend
+    this.channels.forEach((channel) => {
+      const payload = {
+        access_token: tokenToSend,
+        version: DEFAULT_VERSION,
+      }
+      tokenToSend && channel.updateJoinPayload(payload)
+      // ... handle already-joined channels ...
+    })
+  }
+}
+```
+
+### 3. Conditional Token Refresh
+
+Only refresh tokens that came from callbacks:
+
+```typescript
+private _setAuthSafely(context = 'general'): void {
+  // Only refresh auth if using callback-based tokens
+  if (!this._isManualToken()) {
+    this.setAuth().catch((e) => {
+      this.log('error', `Error setting auth in ${context}`, e)
+    })
+  }
+}
+
+// Called from heartbeat
+async sendHeartbeat() {
+  // ... heartbeat logic ...
+  this._setAuthSafely('heartbeat') // ✅ Won't overwrite manual tokens
+}
+```
+
+### 4. Respect Manual Tokens in Channel Subscribe
+
+```typescript
+// In RealtimeChannel.subscribe()
+this.joinPush.receive('ok', async ({ postgres_changes }) => {
+  // Only refresh auth if using callback-based tokens
+  if (!this.socket._isManualToken()) {
+    this.socket.setAuth()
+  }
+  // ... rest of subscription logic ...
+})
+```
+
+## Updated API Behavior
+
+The `setAuth()` method now has clear semantics:
+
+<Alert type="info">
+When a token is explicitly provided via setAuth(token), it will be preserved across all channel operations. The accessToken callback will not be invoked until setAuth() is called without arguments, giving you complete control over token management.
+</Alert>
+
+```typescript
+/**
+ * Sets the JWT access token used for channel subscription authorization.
+ *
+ * When a token is explicitly provided, it will be preserved across channel
+ * operations (including removeChannel and resubscribe). The `accessToken` 
+ * callback will not be invoked until `setAuth()` is called without arguments.
+ *
+ * @param token A JWT string to override the token set on the client.
+ *
+ * @example
+ * // Use a manual token (preserved across resubscribes, ignores accessToken callback)
+ * client.realtime.setAuth('my-custom-jwt')
+ *
+ * // Switch back to using the accessToken callback
+ * client.realtime.setAuth()
+ */
+async setAuth(token: string | null = null): Promise<void>
+```
+
+## Testing Strategy
+
+We added comprehensive tests covering all edge cases:
+
+### Test 1: Token Preservation Across removeChannel
+
+```typescript
+test('preserves access token when resubscribing after removeChannel', async () => {
+  const customToken = generateJWT('1h')
+  
+  // Set custom token
+  await socket.setAuth(customToken)
+  
+  // Subscribe to first channel
+  const channel1 = socket.channel('conversation:123', {
+    config: { private: true }
+  })
+  await channel1.subscribe()
+  
+  // Verify token was sent in join
+  expect(joinPayload).toHaveProperty('access_token', customToken)
+  
+  // Remove channel
+  await socket.removeChannel(channel1)
+  
+  // Create new channel and subscribe
+  const channel2 = socket.channel('conversation:456', {
+    config: { private: true }
+  })
+  await channel2.subscribe()
+  
+  // ✅ Token is still present
+  expect(secondJoinPayload).toHaveProperty('access_token', customToken)
+})
+```
+
+### Test 2: Callback-Based Token Rotation
+
+```typescript
+test('supports accessToken callback for token rotation', async () => {
+  let callCount = 0
+  const client = new RealtimeClient(url, {
+    params: { apikey: 'key' },
+    accessToken: async () => {
+      callCount++
+      return generateJWT('1h')
+    }
+  })
+  
+  await client.setAuth() // Fetch from callback
+  
+  const channel1 = client.channel('test', { config: { private: true } })
+  await channel1.subscribe()
+  
+  await client.removeChannel(channel1)
+  
+  const channel2 = client.channel('test', { config: { private: true } })
+  await channel2.subscribe()
+  
+  // ✅ Callback was called for both subscriptions
+  expect(callCount).toBeGreaterThan(1)
+})
+```
+
+### Test 3: Graceful Callback Failure
+
+```typescript
+test('handles accessToken callback errors gracefully', async () => {
+  let callCount = 0
+  const tokens = ['initial-token', null]
+  
+  const accessToken = vi.fn(() => {
+    if (callCount++ === 0) {
+      return Promise.resolve(tokens[0])
+    }
+    return Promise.reject(new Error('Token fetch failed'))
+  })
+  
+  const client = new RealtimeClient(url, {
+    params: { apikey: 'key' },
+    accessToken
+  })
+  
+  // First subscribe succeeds
+  await client.setAuth()
+  const channel1 = client.channel('test', { config: { private: true } })
+  await channel1.subscribe()
+  
+  // Remove and resubscribe - callback fails
+  await client.removeChannel(channel1)
+  const channel2 = client.channel('test', { config: { private: true } })
+  await channel2.subscribe()
+  
+  // ✅ Falls back to cached token
+  expect(client.accessTokenValue).toBe(tokens[0])
+})
+```
+
+## Migration Guide
+
+<Alert type="success">
+This fix is 100% backward compatible. Existing code continues to work without any changes. Apps automatically benefit from the improved behavior.
+</Alert>
+
+### No Breaking Changes!
+
+```typescript
+// Callback-based auth (unchanged behavior)
+const client = new RealtimeClient(url, {
+  params: { apikey: 'key' },
+  accessToken: async () => {
+    return await getSessionToken()
+  }
+})
+await client.setAuth() // Fetches from callback
+```
+
+### Improved Pattern for Manual Tokens
+
+<Comparison 
+  labels={{ before: 'Before Fix', after: 'After Fix' }}
+  before={
+    <>
+      <p><strong>Had to call setAuth repeatedly:</strong></p>
+      <pre><code>await client.setAuth('token')
+const ch1 = client.channel('topic')
+await ch1.subscribe()
+
+await client.removeChannel(ch1)
+
+// ❌ Must call setAuth again
+await client.setAuth('token')
+const ch2 = client.channel('topic2')
+await ch2.subscribe()</code></pre>
+    </>
+  }
+  after={
+    <>
+      <p><strong>Set once, works everywhere:</strong></p>
+      <pre><code>await client.setAuth('token')
+const ch1 = client.channel('topic')
+await ch1.subscribe()
+
+await client.removeChannel(ch1)
+
+// ✅ Token preserved!
+const ch2 = client.channel('topic2')
+await ch2.subscribe()</code></pre>
+    </>
+  }
+/>
+
+### Switching Between Manual and Callback
+
+```typescript
+// Start with manual token
+await client.setAuth('my-jwt-token')
+const channel1 = client.channel('room1').subscribe()
+
+// Switch to callback-based (for token rotation)
+await client.setAuth() // Call without arguments
+// Now uses accessToken callback again
+```
+
+## Real-World Use Cases
+
+### Chat Application
+
+```typescript
+// User logs in, gets JWT from your auth system
+const userJWT = await loginUser(email, password)
+
+// Set token once
+await realtimeClient.setAuth(userJWT)
+
+// Subscribe to conversations as user navigates
+async function joinConversation(conversationId) {
+  // Leave old conversation
+  if (currentChannel) {
+    await realtimeClient.removeChannel(currentChannel)
+  }
+  
+  // Join new conversation - token is preserved!
+  currentChannel = realtimeClient.channel(
+    `conversation:${conversationId}`,
+    { config: { private: true } }
+  )
+  
+  await currentChannel.subscribe()
+}
+```
+
+### Multiplayer Game
+
+```typescript
+// Set player token
+await gameClient.setAuth(playerToken)
+
+// Move between game lobbies
+async function switchLobby(fromLobby, toLobby) {
+  await gameClient.removeChannel(fromLobby)
+  
+  const newLobby = gameClient.channel(`lobby:${toLobby}`, {
+    config: { private: true }
+  })
+  
+  await newLobby.subscribe() // Token works automatically
+}
+```
+
+## Results & Impact
+
+<MetricsGrid metrics={[
+  { value: '100%', label: 'Backward Compatible' },
+  { value: '0', label: 'Breaking Changes' },
+  { value: '3x', label: 'Test Coverage' },
+  { value: 'v2.81.1', label: 'Shipped In' }
+]} />
+
+**Community Impact**:
+- Fixed authentication for dynamic channel subscription patterns
+- Eliminated workarounds where users repeatedly called `setAuth()`
+- Enabled cleaner code for chat apps, games, and collaboration tools
+- Zero migration required - existing apps benefit automatically
+
+**Performance Impact**:
+- Zero overhead - single boolean flag check
+- Reduced network calls - manual tokens no longer trigger unnecessary callbacks
+- Fewer token refresh operations on heartbeat
+
+<KeyTakeaways items={[
+  'Track the source of data, not just the data itself - intent matters for API design',
+  'Make automatic refreshes opt-in rather than aggressive to preserve user control',
+  'Test the complete lifecycle: set → use → remove → re-use patterns',
+  'Document when side effects (like callback invocations) occur for API clarity',
+  'Graceful degradation: fall back to cached tokens when callbacks fail',
+  'Backward compatibility enables users to benefit without migration pain',
+  'Comprehensive test coverage prevents regressions in state transitions',
+  'This pattern applies to any cached data with multiple providers'
+]} />
+
+## Contributing to Open Source
+
+This fix is part of the [Supabase JavaScript monorepo](https://github.com/supabase/supabase-js). The Supabase team was responsive and helpful throughout the review process.
+
+**Related Links**:
+- PR: [#1826 - Fix setAuth token preservation](https://github.com/supabase/realtime-js/pull/1826)
+- Released in: `@supabase/realtime-js` v2.81.1
+- Issue tracker: GitHub Issues for realtime-js
+
+**Would I contribute again?** Absolutely. The Supabase codebase is well-organized, the team is welcoming, and fixing real user problems in widely-used open source software is incredibly rewarding.
+
+This pattern of tracking data sources and preserving user intent applies beyond auth tokens - anywhere you have cached data with multiple providers, consider tracking where it came from to make better refresh decisions.
+

@@ -40,27 +40,22 @@ export async function createPostAction(formData: FormData) {
     ? tagsString.split(',').map((t) => t.trim()).filter(Boolean)
     : [];
 
-  try {
-    await createPost({
-      slug,
-      title,
-      subtitle,
-      summary,
-      content,
-      type,
-      cover_image_url: coverImageUrl,
-      status,
-      reading_time_minutes: readingTime,
-      tags,
-    });
+  await createPost({
+    slug,
+    title,
+    subtitle,
+    summary,
+    content,
+    type,
+    cover_image_url: coverImageUrl,
+    status,
+    reading_time_minutes: readingTime,
+    tags,
+  });
 
-    revalidatePath('/blog');
-    revalidatePath('/playbooks');
-    redirect('/admin/blog');
-  } catch (error) {
-    console.error('Error creating post:', error);
-    throw new Error('Failed to create post');
-  }
+  revalidatePath('/blog');
+  revalidatePath('/playbooks');
+  redirect('/admin/blog');
 }
 
 export async function updatePostAction(id: number, formData: FormData) {
@@ -93,28 +88,23 @@ export async function updatePostAction(id: number, formData: FormData) {
     ? tagsString.split(',').map((t) => t.trim()).filter(Boolean)
     : [];
 
-  try {
-    await updatePost(id, {
-      slug,
-      title,
-      subtitle,
-      summary,
-      content,
-      type,
-      cover_image_url: coverImageUrl,
-      status,
-      reading_time_minutes: readingTime,
-      tags,
-    });
+  await updatePost(id, {
+    slug,
+    title,
+    subtitle,
+    summary,
+    content,
+    type,
+    cover_image_url: coverImageUrl,
+    status,
+    reading_time_minutes: readingTime,
+    tags,
+  });
 
-    revalidatePath('/blog');
-    revalidatePath('/playbooks');
-    revalidatePath(`/playbooks/${slug}`);
-    redirect('/admin/blog');
-  } catch (error) {
-    console.error('Error updating post:', error);
-    throw new Error('Failed to update post');
-  }
+  revalidatePath('/blog');
+  revalidatePath('/playbooks');
+  revalidatePath(`/playbooks/${slug}`);
+  redirect('/admin/blog');
 }
 
 export async function deletePostAction(id: number) {
@@ -124,15 +114,10 @@ export async function deletePostAction(id: number) {
     throw new Error('Unauthorized: You must be signed in to delete posts');
   }
 
-  try {
-    await deletePost(id);
-    revalidatePath('/blog');
-    revalidatePath('/playbooks');
-    redirect('/admin/blog');
-  } catch (error) {
-    console.error('Error deleting post:', error);
-    throw new Error('Failed to delete post');
-  }
+  await deletePost(id);
+  revalidatePath('/blog');
+  revalidatePath('/playbooks');
+  redirect('/admin/blog');
 }
 
 export async function submitContactForm(formData: FormData) {

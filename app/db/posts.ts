@@ -142,6 +142,29 @@ export async function getPostById(id: number): Promise<PostWithTags | null> {
   return result.length > 0 ? (result[0] as any) : null;
 }
 
+// Get post by slug for admin (includes drafts)
+export async function getPostBySlugAdmin(slug: string): Promise<PostWithTags | null> {
+  if (!process.env.POSTGRES_URL) {
+    return null;
+  }
+
+  noStore();
+  
+  const result = await sql`
+    SELECT p.*, 
+           COALESCE(
+             array_agg(DISTINCT pt.tag) FILTER (WHERE pt.tag IS NOT NULL), 
+             '{}'
+           ) as tags
+    FROM posts p
+    LEFT JOIN post_tags pt ON p.id = pt.post_id
+    WHERE p.slug = ${slug}
+    GROUP BY p.id
+  `;
+
+  return result.length > 0 ? (result[0] as any) : null;
+}
+
 // Create new post
 export async function createPost(data: {
   slug: string;

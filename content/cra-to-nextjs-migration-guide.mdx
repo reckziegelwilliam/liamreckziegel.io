@@ -1,0 +1,550 @@
+---
+title: 'Migrating from Create React App to Next.js Turbo'
+subtitle: 'A Complete Production Migration Guide'
+slug: 'cra-to-nextjs-migration-guide'
+publishedAt: '2024-12-09'
+summary: 'Complete migration from CRA to Next.js Turbo monorepo reducing deploy times by 60%. Practical patterns for routing, SSR, and managing distributed teams.'
+tags: 'nextjs, react, migration, turbo, performance'
+type: 'Playbook'
+---
+
+## Why Migrate from CRA?
+
+Create React App was hitting hard limits on a growing platform:
+
+**Performance Issues**:
+- Deploy times: 15+ minutes for production builds
+- Bundle size: 3.2MB gzipped with no code splitting
+- No SSR/SSG: Poor SEO and slow initial page loads
+- Limited optimization: CRA abstracts webpack, limiting control
+
+**Developer Experience**:
+- Slow hot reload in development
+- Single build target (can't optimize differently per route)
+- Growing complexity with custom webpack configs via CRACO
+
+**Business Impact**:
+- Slower feature deployment → reduced iteration speed
+- Poor Core Web Vitals → lower search rankings
+- High bounce rates on slow initial loads
+
+<MetricsGrid metrics={[
+  { value: '60%', label: 'Faster Deploys' },
+  { value: '3.2MB → 800KB', label: 'Bundle Reduction' },
+  { value: '15min → 6min', label: 'Build Time' },
+  { value: '12 weeks', label: 'Migration Time' }
+]} />
+
+## Migration Strategy
+
+### Phase 1: Analysis & Planning (Week 1-2)
+
+**Dependency Audit**
+```bash
+# Identified CRA-specific packages to remove
+npm ls react-scripts
+npm ls craco
+```
+
+**Breaking Changes Inventory**:
+- Routing: `react-router-dom` → Next.js file-based routing
+- API calls: Client-side only → Hybrid client/server
+- Environment variables: Custom names → `NEXT_PUBLIC_` prefix
+- CSS handling: CSS modules → CSS modules + Tailwind optimization
+
+**Migration Path Decision**:
+Chose incremental migration over big-bang rewrite:
+1. Set up Next.js alongside CRA
+2. Migrate routes one at a time
+3. Test each route in isolation
+4. Switch traffic after validation
+
+<Alert type="warning">
+Plan for 3-4 months for a medium-sized app. Incremental migration is safer but requires running both CRA and Next.js simultaneously during the transition. Budget for the infrastructure costs of dual deployments.
+</Alert>
+
+### Phase 2: Next.js Turbo Setup (Week 3)
+
+**Initial Setup**
+```bash
+npx create-next-app@latest --typescript --tailwind --app
+```
+
+**Turbo Configuration**
+```json
+// turbo.json
+{
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "outputs": []
+    }
+  }
+}
+```
+
+**Monorepo Structure**
+```
+apps/
+  web/                 # Next.js app
+  admin/              # Admin dashboard (also Next.js)
+packages/
+  ui/                 # Shared components
+  utils/              # Shared utilities
+  config/             # Shared configs (eslint, typescript)
+```
+
+### Phase 3: Routing Migration (Week 4-6)
+
+<Comparison 
+  labels={{ before: 'CRA with React Router', after: 'Next.js File-based Routing' }}
+  before={
+    <>
+      <p><strong>Manual routing configuration:</strong></p>
+      <ul>
+        <li>Programmatic route definitions</li>
+        <li>Client-side only navigation</li>
+        <li>Manual code splitting</li>
+        <li>Complex nested routes</li>
+      </ul>
+    </>
+  }
+  after={
+    <>
+      <p><strong>File-system based routing:</strong></p>
+      <ul>
+        <li>Automatic route generation</li>
+        <li>Built-in SSR/SSG support</li>
+        <li>Automatic code splitting</li>
+        <li>Intuitive nested layouts</li>
+      </ul>
+    </>
+  }
+/>
+
+**Before: React Router**
+```typescript
+// CRA routing
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/posts/:slug" element={<Post />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+```
+
+**After: Next.js App Router**
+```typescript
+// app/page.tsx
+export default function Home() {
+  return <HomePage />;
+}
+
+// app/dashboard/page.tsx
+export default function Dashboard() {
+  return <DashboardPage />;
+}
+
+// app/posts/[slug]/page.tsx
+export default function Post({ params }: { params: { slug: string } }) {
+  return <PostPage slug={params.slug} />;
+}
+```
+
+**Dynamic Route Handling**
+```typescript
+// Type-safe params with Next.js 14+
+type PageProps = {
+  params: { slug: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+};
+
+export default async function Page({ params, searchParams }: PageProps) {
+  // Server-side data fetching
+  const data = await fetchData(params.slug);
+  return <Content data={data} />;
+}
+```
+
+### Phase 4: Component Migration (Week 7-9)
+
+**Challenge**: CRA components assumed client-side only.
+
+**Solution**: Separate client and server components.
+
+```typescript
+// Before: All client-side
+function UserProfile() {
+  const [user, setUser] = useState(null);
+  
+  useEffect(() => {
+    fetch('/api/user').then(r => r.json()).then(setUser);
+  }, []);
+  
+  return <div>{user?.name}</div>;
+}
+```
+
+```typescript
+// After: Server component fetches, client handles interactivity
+// app/profile/page.tsx (Server Component)
+async function UserProfile() {
+  const user = await fetchUser(); // Server-side fetch
+  return <UserProfileClient user={user} />;
+}
+
+// components/user-profile-client.tsx
+'use client';
+
+function UserProfileClient({ user }: { user: User }) {
+  const [isEditing, setIsEditing] = useState(false);
+  // Client-side interactivity only
+  return (
+    <div>
+      {user.name}
+      <button onClick={() => setIsEditing(true)}>Edit</button>
+    </div>
+  );
+}
+```
+
+**Pattern for Browser APIs**
+```typescript
+'use client';
+
+import { useEffect, useState } from 'react';
+
+export function BrowserOnlyComponent() {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  if (!mounted) return null;
+  
+  // Safe to use window, document, etc.
+  return <div>{window.innerWidth}</div>;
+}
+```
+
+### Phase 5: API Routes (Week 10-11)
+
+**Before: Separate Express Backend**
+```typescript
+// Express server
+app.get('/api/posts', async (req, res) => {
+  const posts = await db.query('SELECT * FROM posts');
+  res.json(posts);
+});
+```
+
+**After: Next.js API Routes**
+```typescript
+// app/api/posts/route.ts
+import { NextResponse } from 'next/server';
+
+export async function GET(request: Request) {
+  const posts = await db.query('SELECT * FROM posts');
+  return NextResponse.json(posts);
+}
+
+export async function POST(request: Request) {
+  const body = await request.json();
+  const post = await db.insert('posts', body);
+  return NextResponse.json(post, { status: 201 });
+}
+```
+
+**Server Actions for Mutations**
+```typescript
+// app/actions/posts.ts
+'use server';
+
+export async function createPost(formData: FormData) {
+  const title = formData.get('title');
+  const content = formData.get('content');
+  
+  const post = await db.posts.create({
+    data: { title, content }
+  });
+  
+  revalidatePath('/posts');
+  return { success: true, post };
+}
+```
+
+### Phase 6: State Management (Week 12)
+
+**Challenge**: Redux configured for client-side only.
+
+**Solution**: Redux with SSR support + Server State separation.
+
+```typescript
+// lib/store.ts
+import { configureStore } from '@reduxjs/toolkit';
+import { setupListeners } from '@reduxjs/toolkit/query';
+
+export const makeStore = () => {
+  const store = configureStore({
+    reducer: {
+      // your reducers
+    },
+  });
+  setupListeners(store.dispatch);
+  return store;
+};
+
+export type AppStore = ReturnType<typeof makeStore>;
+export type RootState = ReturnType<AppStore['getState']>;
+```
+
+```typescript
+// components/StoreProvider.tsx
+'use client';
+
+import { useRef } from 'react';
+import { Provider } from 'react-redux';
+import { makeStore, AppStore } from '../lib/store';
+
+export default function StoreProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const storeRef = useRef<AppStore>();
+  if (!storeRef.current) {
+    storeRef.current = makeStore();
+  }
+
+  return <Provider store={storeRef.current}>{children}</Provider>;
+}
+```
+
+**For Server State**: Migrated to React Query for data fetching.
+
+```typescript
+// lib/queries.ts
+export function usePosts() {
+  return useQuery({
+    queryKey: ['posts'],
+    queryFn: () => fetch('/api/posts').then(r => r.json())
+  });
+}
+```
+
+### Phase 7: Environment Variables (Week 13)
+
+**CRA Convention**
+```bash
+REACT_APP_API_URL=https://api.example.com
+REACT_APP_ENV=production
+```
+
+**Next.js Convention**
+```bash
+# Public (exposed to browser)
+NEXT_PUBLIC_API_URL=https://api.example.com
+
+# Private (server-side only)
+DATABASE_URL=postgresql://...
+SECRET_KEY=...
+```
+
+**Migration Script**
+```bash
+# Automated rename
+sed -i '' 's/REACT_APP_/NEXT_PUBLIC_/g' .env.local
+```
+
+## Performance Improvements
+
+### Build Times
+- **Before**: 15 minutes average
+- **After**: 6 minutes average
+- **Improvement**: 60% reduction
+
+### Bundle Size
+- **Before**: 3.2MB gzipped
+- **After**: 180KB initial bundle (with code splitting)
+- **Improvement**: 94% reduction in initial load
+
+### Core Web Vitals
+- **LCP**: 3.8s → 1.2s
+- **FID**: 180ms → 45ms
+- **CLS**: 0.25 → 0.05
+
+### Time to Interactive
+- **Before**: 4.5s on 3G
+- **After**: 1.8s on 3G
+
+## Common Gotchas & Solutions
+
+### 1. Hydration Mismatches
+**Problem**: Server renders different HTML than client.
+
+```typescript
+// ❌ Bad: Different on server vs client
+function Component() {
+  return <div>{Date.now()}</div>;
+}
+
+// ✅ Good: Consistent or client-only
+'use client';
+function Component() {
+  const [time, setTime] = useState<number | null>(null);
+  
+  useEffect(() => {
+    setTime(Date.now());
+  }, []);
+  
+  return <div>{time || 'Loading...'}</div>;
+}
+```
+
+### 2. CSS Module Ordering
+**Problem**: CSS loads in different order causing style conflicts.
+
+**Solution**: Use Tailwind with CSS modules scoped to components.
+
+```typescript
+// Use CSS modules for component-specific styles
+import styles from './component.module.css';
+
+// Use Tailwind for utilities
+<div className={`${styles.container} flex items-center`}>
+```
+
+### 3. Image Optimization
+**Before**: `<img>` tags everywhere.
+
+**After**: Next.js Image component.
+
+```typescript
+import Image from 'next/image';
+
+<Image
+  src="/hero.jpg"
+  alt="Hero"
+  width={1200}
+  height={600}
+  priority
+  placeholder="blur"
+  blurDataURL="data:image/..."
+/>
+```
+
+### 4. Absolute Imports
+**Before**: CRA's jsconfig.json
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": "src"
+  }
+}
+```
+
+**After**: Next.js tsconfig.json
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@/components/*": ["components/*"]
+    }
+  }
+}
+```
+
+## Team Coordination
+
+**Managing 5 Engineers Across Timezones**:
+
+1. **Clear ownership**: Each engineer owned 2-3 routes
+2. **Daily async updates**: Written updates in Slack
+3. **Weekly sync**: Video call to unblock issues
+4. **Shared documentation**: Notion docs for patterns
+5. **Code review SLA**: 24-hour review turnaround
+
+**Communication Patterns**:
+- Migration guide in repo wiki
+- Video walkthroughs of complex patterns
+- Pair programming for tricky migrations
+
+## Rollout Strategy
+
+### Week 14-15: Staged Deployment
+
+1. **Internal testing**: 100% of traffic to team
+2. **Beta users**: 10% of production traffic
+3. **Gradual rollout**: 25% → 50% → 100%
+4. **Rollback plan**: Keep CRA deployment ready
+
+**Feature Flags for Safety**
+```typescript
+// lib/features.ts
+export const features = {
+  useNextJsRouting: process.env.NEXT_PUBLIC_USE_NEW_ROUTING === 'true'
+};
+```
+
+## Lessons Learned
+
+### 1. Start with App Router
+We migrated to Pages Router first, then App Router. Should have gone straight to App Router to avoid double migration.
+
+### 2. Incremental Migration is Worth It
+Rewriting everything at once would have been risky. Route-by-route migration kept the app stable.
+
+### 3. Server Components Change Everything
+Understanding when to use 'use client' took time. Default to server components, opt into client only when needed.
+
+### 4. TypeScript is Essential
+Type safety caught routing bugs before runtime. The migration would have been much harder without TypeScript.
+
+### 5. Monitoring During Migration
+Set up split metrics for CRA vs Next.js routes to compare performance in real-time.
+
+## Would I Recommend This Migration?
+
+**Yes, if**:
+- You need better performance and SEO
+- Your build times are slowing down deploys
+- You want better developer experience
+- You're building for scale
+
+**No, if**:
+- Your CRA app is small and performance is fine
+- You don't have time for 3-4 month migration
+- Your team isn't comfortable with SSR concepts
+
+<KeyTakeaways items={[
+  'Migration reduced deploy times by 60% (15min → 6min) and bundle size by 75%',
+  'Incremental route-by-route migration is safer than a big-bang rewrite',
+  'Start with App Router directly - avoid double migration from Pages Router',
+  'Server Components are the default - only use \'use client\' when necessary',
+  'TypeScript is essential for catching routing and prop errors during migration',
+  'Plan for 3-4 months for medium-sized apps with proper testing',
+  'Turbo monorepo structure enables code sharing across multiple Next.js apps',
+  'The improved DX and performance gains justify the migration investment'
+]} />
+
+**Bottom line**: Next.js with Turbo transformed our deployment velocity and user experience. The 60% reduction in deploy times alone was worth the investment.
+
