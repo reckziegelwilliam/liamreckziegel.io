@@ -23,9 +23,6 @@ export function PostCover({
         className="object-cover"
       />
 
-      {/* Gradient overlay - darker on left, lighter on right for text */}
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/70 to-slate-950/10" />
-
       {/* Content Grid - Split into two halves */}
       <div className="relative z-10 grid grid-cols-2 h-full">
         {/* Left Side - Label Badge */}
