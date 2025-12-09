@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth';
 import GitHub from 'next-auth/providers/github';
+import Google from 'next-auth/providers/google';
 
 export const {
   handlers: { GET, POST },
@@ -16,40 +17,17 @@ export const {
           scope: 'read:user user:email',
         },
       },
-      async profile(profile, tokens) {
-        console.log('GitHub profile received:', profile);
-        
-        // If email is not in profile, fetch it from the emails API
-        let email = profile.email;
-        
-        if (!email && tokens.access_token) {
-          try {
-            const emailsResponse = await fetch('https://api.github.com/user/emails', {
-              headers: {
-                Authorization: `Bearer ${tokens.access_token}`,
-              },
-            });
-            
-            if (emailsResponse.ok) {
-              const emails = await emailsResponse.json();
-              // Find the primary email or the first verified email
-              const primaryEmail = emails.find((e: any) => e.primary && e.verified);
-              const verifiedEmail = emails.find((e: any) => e.verified);
-              email = primaryEmail?.email || verifiedEmail?.email || emails[0]?.email;
-              console.log('Fetched email from API:', email);
-            }
-          } catch (error) {
-            console.error('Error fetching user emails:', error);
-          }
+    }),
+    Google({
+      clientId: process.env.AUTH_GOOGLE_ID!,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      authorization: {
+        params: {
+          prompt: 'consent',
+          access_type: 'offline',
+          response_type: 'code'
         }
-        
-        return {
-          id: profile.id.toString(),
-          name: profile.name || profile.login,
-          email: email,
-          image: profile.avatar_url,
-        };
-      },
+      }
     }),
   ],
   debug: true,
@@ -68,12 +46,59 @@ export const {
     }
   },
   callbacks: {
-    jwt({ token, profile, account }) {
-      if (profile) {
+    async signIn({ user, account, profile }) {
+      // Restrict access to only your email
+      const allowedEmail = process.env.ALLOWED_EMAIL;
+      
+      if (!allowedEmail) {
+        console.error('ALLOWED_EMAIL environment variable is not set');
+        return false;
+      }
+      
+      // Check email from user object or profile
+      const email = user?.email || profile?.email;
+      
+      if (email && email.toLowerCase() === allowedEmail.toLowerCase()) {
+        return true;
+      }
+      
+      console.log(`Access denied for email: ${email}`);
+      return false;
+    },
+    async jwt({ token, account, profile }) {
+      // On first sign in, fetch user data
+      if (account && profile) {
         token.id = profile.id;
-        // Ensure email is captured from GitHub profile
-        if (profile.email) {
-          token.email = profile.email;
+        token.email = profile.email;
+        
+        // Handle different provider structures
+        if (account.provider === 'github') {
+          token.name = profile.name || (profile as any).login;
+          token.picture = (profile as any).avatar_url;
+          
+          // If no email in profile, fetch from GitHub API
+          if (!token.email && account.access_token) {
+            try {
+              const response = await fetch('https://api.github.com/user/emails', {
+                headers: {
+                  Authorization: `Bearer ${account.access_token}`,
+                  Accept: 'application/vnd.github.v3+json',
+                },
+              });
+              
+              if (response.ok) {
+                const emails = await response.json();
+                const primaryEmail = emails.find((e: any) => e.primary && e.verified);
+                const verifiedEmail = emails.find((e: any) => e.verified);
+                token.email = primaryEmail?.email || verifiedEmail?.email;
+              }
+            } catch (error) {
+              console.error('Error fetching GitHub emails:', error);
+            }
+          }
+        } else if (account.provider === 'google') {
+          token.name = profile.name;
+          token.picture = (profile as any).picture;
         }
       }
       return token;
@@ -81,10 +106,9 @@ export const {
     session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
-        // Ensure email is in session
-        if (token.email) {
-          session.user.email = token.email as string;
-        }
+        session.user.email = token.email as string;
+        session.user.name = token.name as string;
+        session.user.image = token.picture as string;
       }
       return session;
     }

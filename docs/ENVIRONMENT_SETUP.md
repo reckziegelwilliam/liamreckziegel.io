@@ -8,11 +8,13 @@ Add these to your `.env` file:
 # Database
 POSTGRES_URL=your_postgres_connection_string
 
-# Authentication (NextAuth)
-NEXTAUTH_SECRET=your_nextauth_secret
-NEXTAUTH_URL=https://liamrex.io
-GITHUB_CLIENT_ID=your_github_oauth_client_id
-GITHUB_CLIENT_SECRET=your_github_oauth_client_secret
+# Authentication (NextAuth v5)
+AUTH_SECRET=your_nextauth_secret
+AUTH_GITHUB_ID=your_github_oauth_client_id
+AUTH_GITHUB_SECRET=your_github_oauth_client_secret
+AUTH_GOOGLE_ID=your_google_oauth_client_id
+AUTH_GOOGLE_SECRET=your_google_oauth_client_secret
+ALLOWED_EMAIL=your.email@gmail.com
 
 # AWS S3 Configuration (for media uploads)
 AWS_S3_BUCKET_NAME=your-bucket-name
@@ -56,7 +58,34 @@ Already configured. No changes needed.
 }
 ```
 
-### 3. Install New Dependencies
+### 3. Google OAuth Setup
+
+1. **Create a Google Cloud Project:**
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select an existing one
+
+2. **Enable Google+ API:**
+   - In the left sidebar, go to "APIs & Services" > "Library"
+   - Search for "Google+ API" and enable it
+
+3. **Create OAuth 2.0 Credentials:**
+   - Go to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "OAuth client ID"
+   - Choose "Web application"
+   - Add authorized JavaScript origins:
+     - `http://localhost:3000` (for local development)
+     - `https://liamrex.io` (for production)
+   - Add authorized redirect URIs:
+     - `http://localhost:3000/api/auth/callback/google`
+     - `https://liamrex.io/api/auth/callback/google`
+   - Save and copy the Client ID and Client Secret
+
+4. **Set Environment Variables:**
+   - Add `AUTH_GOOGLE_ID` with the Client ID
+   - Add `AUTH_GOOGLE_SECRET` with the Client Secret
+   - Add `ALLOWED_EMAIL` with your personal email (only this email will be allowed to sign in)
+
+### 4. Install New Dependencies
 
 Run this command to install the AWS SDK packages:
 
