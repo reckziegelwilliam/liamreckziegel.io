@@ -9,10 +9,10 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Playbooks',
-  description: 'Technical guides, lessons learned, and insights from building products at scale.',
+  description: 'Lessons I\'ve learned building products from zero to scale. My wins, my mistakes, and everything I figured out along the way.',
   openGraph: {
     title: 'Playbooks | Liam Reckziegel',
-    description: 'Technical guides, lessons learned, and insights from building products at scale.',
+    description: 'Lessons I\'ve learned building products from zero to scale. My wins, my mistakes, and everything I figured out along the way.',
     type: 'website',
   },
 };
@@ -26,8 +26,7 @@ export default async function PlaybooksPage() {
         Playbooks
       </h1>
       <p className="text-[#9CA3AF] dark:text-[#9CA3AF] mb-12 max-w-2xl">
-        Technical guides, lessons learned, and insights from building products at scale. 
-        Real stories from the trenches of startup engineering.
+        Lessons I've learned building products. My wins, my mistakes, and everything I figured out along the way.
       </p>
 
       {posts.length === 0 ? (
