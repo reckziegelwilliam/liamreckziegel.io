@@ -5,6 +5,7 @@ import { TweetComponent } from './tweet';
 import { highlight } from 'sugar-high';
 import React from 'react';
 import { LiveCode } from './sandpack';
+import { CopyButton } from './copy-button';
 
 function Table({ data }) {
   let headers = data.headers.map((header, index) => (
@@ -256,12 +257,7 @@ function CodeBlock({ children, filename, language = 'typescript' }) {
       {filename && (
         <div className="bg-neutral-100 dark:bg-neutral-900 px-4 py-2 text-sm text-neutral-600 dark:text-neutral-400 font-mono border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
           <span>{filename}</span>
-          <button 
-            className="text-xs hover:text-cyan-500 transition-colors"
-            onClick={() => navigator.clipboard.writeText(children)}
-          >
-            Copy
-          </button>
+          <CopyButton text={children} />
         </div>
       )}
       <pre className="p-4 overflow-x-auto bg-neutral-50 dark:bg-neutral-900">
