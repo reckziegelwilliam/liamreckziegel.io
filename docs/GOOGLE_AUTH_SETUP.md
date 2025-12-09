@@ -81,16 +81,20 @@ If deploying to Vercel, add these variables:
 
 ## How It Works
 
-### Email Restriction
+### Email Restriction & Admin Access
 The `signIn` callback in `app/auth.ts` checks every sign-in attempt:
 - Compares the email from the authentication provider with `ALLOWED_EMAIL`
 - Only allows sign-in if emails match (case-insensitive)
 - Works for both GitHub and Google authentication
+- **Once authenticated, users automatically have full admin access** - no additional role checks
 
 ### Provider-Specific Handling
 The `jwt` callback handles different data structures:
 - **GitHub**: Uses `login` as fallback for name, `avatar_url` for picture
 - **Google**: Uses standard `name` and `picture` fields
+
+### Single Source of Truth
+Authorization is handled entirely in the `signIn` callback using `ALLOWED_EMAIL`. There are no additional permission checks in admin pages or actions - if you can sign in, you have admin access.
 
 ## Security Notes
 

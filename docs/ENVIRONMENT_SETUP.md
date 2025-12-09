@@ -85,6 +85,11 @@ Already configured. No changes needed.
    - Add `AUTH_GOOGLE_SECRET` with the Client Secret
    - Add `ALLOWED_EMAIL` with your personal email (only this email will be allowed to sign in)
 
+5. **Authentication Flow:**
+   - The `ALLOWED_EMAIL` is the **single source of truth** for authorization
+   - Users who successfully sign in automatically have full admin access
+   - No additional role-based permissions are enforced
+
 ### 4. Install New Dependencies
 
 Run this command to install the AWS SDK packages:

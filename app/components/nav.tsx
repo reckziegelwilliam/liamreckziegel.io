@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { auth } from '@/app/auth';
-import { canView } from '@/app/lib/permissions';
 
 const navItems = {
   '/': {
@@ -22,7 +21,7 @@ const navItems = {
 
 export async function Navbar() {
   const session = await auth();
-  const hasAdminAccess = session && canView(session.user);
+  const hasAdminAccess = !!session?.user;
 
   return (
     <aside className="mb-16 tracking-tight relative">

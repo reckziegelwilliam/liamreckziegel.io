@@ -4,17 +4,16 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { updateSubmissionStatus } from '@/app/db/contact';
 import { auth } from '@/app/auth';
-import { permissions } from '@/app/lib/permissions';
 import { sql } from '@/app/db/postgres';
 
 export async function updateContactStatusAction(
   id: number,
   status: 'unread' | 'read' | 'replied' | 'archived'
 ) {
-  // Security: Verify user has permission to view/manage contacts
+  // Security: Verify user is authenticated
   const session = await auth();
-  if (!session || !permissions.contact.view(session.user)) {
-    throw new Error('Unauthorized: You do not have permission to manage contact submissions');
+  if (!session?.user) {
+    throw new Error('Unauthorized: You must be signed in to manage contact submissions');
   }
 
   try {
@@ -28,10 +27,10 @@ export async function updateContactStatusAction(
 }
 
 export async function deleteContactAction(id: number) {
-  // Security: Verify user is admin (only admins can delete contacts)
+  // Security: Verify user is authenticated
   const session = await auth();
-  if (!session || !permissions.contact.delete(session.user)) {
-    throw new Error('Unauthorized: Only admins can delete contact submissions');
+  if (!session?.user) {
+    throw new Error('Unauthorized: You must be signed in to delete contact submissions');
   }
 
   try {

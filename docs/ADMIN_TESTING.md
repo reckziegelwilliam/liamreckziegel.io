@@ -4,8 +4,8 @@ This document provides comprehensive testing instructions for all admin features
 
 ## Prerequisites
 
-- Admin access (email must be in `app/lib/permissions.ts`)
-- Logged in with GitHub OAuth
+- Admin access (email must match `ALLOWED_EMAIL` environment variable)
+- Logged in with GitHub or Google OAuth
 - Database migrations completed
 
 ## Testing Checklist
@@ -14,20 +14,20 @@ This document provides comprehensive testing instructions for all admin features
 
 #### Test 1.1: Login Flow
 - [ ] Visit `/dashboard` while logged out → should redirect to home with error
-- [ ] Login with GitHub → should redirect to dashboard
-- [ ] Verify admin email is in permissions list
+- [ ] Login with GitHub or Google → should redirect to dashboard
+- [ ] Visit `/debug-session` → verify your email is displayed correctly
 
-#### Test 1.2: Permission Checks
-- [ ] Try creating a post → should succeed if editor/admin
-- [ ] Try deleting a post → should succeed only if admin
-- [ ] Try deleting contact → should succeed only if admin
-- [ ] Try accessing settings → should succeed only if admin
+#### Test 1.2: Access Controls
+- [ ] Try creating a post → should succeed (authenticated user)
+- [ ] Try deleting a post → should succeed (authenticated user)
+- [ ] Try deleting contact → should succeed (authenticated user)
+- [ ] Try accessing settings → should succeed (authenticated user)
 
 #### Test 1.3: Unauthorized Access
-- [ ] Change admin email in permissions.ts to different email
-- [ ] Restart server
+- [ ] Sign out
 - [ ] Try accessing `/dashboard` → should redirect with unauthorized error
-- [ ] Restore original email
+- [ ] Try signing in with email that doesn't match `ALLOWED_EMAIL` → should be denied at sign-in
+- [ ] Verify you see appropriate error message
 
 ### Phase 2: Dashboard
 

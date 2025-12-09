@@ -1,3 +1,18 @@
+/**
+ * @deprecated This file is no longer actively used in the auth system.
+ * 
+ * The application now uses a simplified authentication approach:
+ * - Authorization happens in auth.ts via the signIn callback using ALLOWED_EMAIL env var
+ * - Authenticated users automatically have full admin access
+ * - No role-based permissions are currently enforced
+ * 
+ * This file is kept for potential future extensibility if you need to add
+ * role-based permissions in the future. To use it, you would need to:
+ * 1. Add the ADMIN_USERS array back to your auth flow
+ * 2. Import and use the permission functions in your admin pages/actions
+ * 3. Update the signIn callback in auth.ts to check against this array
+ */
+
 // Role-based permissions system for admin access control
 
 export type Role = 'admin' | 'editor' | 'viewer';

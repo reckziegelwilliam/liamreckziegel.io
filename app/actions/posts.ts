@@ -10,13 +10,12 @@ import {
 import { generateSlug, calculateReadingTime } from '@/app/utils/blog';
 import { createContactSubmission } from '@/app/db/contact';
 import { auth } from '@/app/auth';
-import { permissions } from '@/app/lib/permissions';
 
 export async function createPostAction(formData: FormData) {
-  // Security: Verify user has permission to create posts
+  // Security: Verify user is authenticated
   const session = await auth();
-  if (!session || !permissions.blog.create(session.user)) {
-    throw new Error('Unauthorized: You do not have permission to create posts');
+  if (!session?.user) {
+    throw new Error('Unauthorized: You must be signed in to create posts');
   }
   const title = formData.get('title') as string;
   const subtitle = formData.get('subtitle') as string;
@@ -65,10 +64,10 @@ export async function createPostAction(formData: FormData) {
 }
 
 export async function updatePostAction(id: number, formData: FormData) {
-  // Security: Verify user has permission to edit posts
+  // Security: Verify user is authenticated
   const session = await auth();
-  if (!session || !permissions.blog.edit(session.user)) {
-    throw new Error('Unauthorized: You do not have permission to edit posts');
+  if (!session?.user) {
+    throw new Error('Unauthorized: You must be signed in to edit posts');
   }
 
   const title = formData.get('title') as string;
@@ -119,10 +118,10 @@ export async function updatePostAction(id: number, formData: FormData) {
 }
 
 export async function deletePostAction(id: number) {
-  // Security: Verify user has permission to delete posts (admin only)
+  // Security: Verify user is authenticated
   const session = await auth();
-  if (!session || !permissions.blog.delete(session.user)) {
-    throw new Error('Unauthorized: Only admins can delete posts');
+  if (!session?.user) {
+    throw new Error('Unauthorized: You must be signed in to delete posts');
   }
 
   try {

@@ -16,7 +16,7 @@ All admin routes automatically get:
 - ✅ Centralized authentication (single check in layout)
 - ✅ Shared navigation sidebar
 - ✅ Consistent styling and layout
-- ✅ Role-based permissions
+- ✅ Protected by email-based authorization
 
 ### Key Files
 
@@ -71,55 +71,44 @@ app/
 
 ## Permission System
 
-### Roles
+### Simplified Authentication (Current)
 
-Defined in `app/lib/permissions.ts`:
+The admin system uses a simplified authentication approach:
 
-1. **admin** - Full access (create, edit, delete, publish, settings)
-2. **editor** - Can create, edit, and publish content
-3. **viewer** - Can only view admin areas
+1. **Single Source of Truth:** Authorization is handled via `ALLOWED_EMAIL` environment variable in the `signIn` callback (`app/auth.ts`)
+2. **Automatic Admin Access:** Once authenticated, users have full admin access to all features
+3. **No Role Differentiation:** All authenticated users have the same permissions
 
-### Adding Admin Users
+### Setting the Admin User
 
-Edit `app/lib/permissions.ts`:
+Set the `ALLOWED_EMAIL` environment variable in your `.env` file:
 
-```typescript
-const ADMIN_USERS: AdminUser[] = [
-  { 
-    email: 'reckziegel.william@gmail.com', 
-    role: 'admin',
-    name: 'Liam Reckziegel'
-  },
-  // Add more:
-  { 
-    email: 'editor@example.com', 
-    role: 'editor', 
-    name: 'Editor Name' 
-  },
-];
+```bash
+ALLOWED_EMAIL=your.email@gmail.com
 ```
 
-### Permission Functions
+Only the email address specified in `ALLOWED_EMAIL` will be able to sign in and access admin features.
+
+### How It Works
 
 ```typescript
-// Check if user has admin role
-isAdmin(user) // true/false
-
-// Check if user can edit content
-canEdit(user) // true for admin or editor
-
-// Check if user can view admin area
-canView(user) // true for any role
-
-// Get user's role
-getUserRole(user) // 'admin' | 'editor' | 'viewer' | null
-
-// Feature-specific permissions
-permissions.blog.create(user)
-permissions.blog.delete(user)
-permissions.contact.view(user)
-permissions.settings.edit(user)
+// In app/auth.ts signIn callback:
+async signIn({ user, account, profile }) {
+  const allowedEmail = process.env.ALLOWED_EMAIL;
+  const email = user?.email || profile?.email;
+  
+  // Single check - if email matches, user gets full admin access
+  if (email && email.toLowerCase() === allowedEmail.toLowerCase()) {
+    return true;
+  }
+  
+  return false;
+}
 ```
+
+### Legacy Role-Based System (Deprecated)
+
+The file `app/lib/permissions.ts` contains a role-based permission system (admin/editor/viewer roles) that is **no longer actively used**. It's kept for potential future extensibility if you need to add role-based permissions. The functions defined there (isAdmin, canEdit, canView, etc.) are not currently enforced in the application.
 
 ## Admin Routes
 
@@ -342,18 +331,21 @@ toast.error('Failed to save post');
 ## Authentication Flow
 
 1. User visits admin route (e.g., `/dashboard`)
-2. `app/(admin)/layout.tsx` checks authentication:
+2. `app/(admin)/layout.tsx` checks for valid session:
    ```typescript
    const session = await auth();
-   if (!session || !canView(session.user)) {
+   if (!session?.user) {
      redirect('/?error=unauthorized');
    }
    ```
-3. If authorized, renders `<ToastProvider>` + `<AdminNav>` + page content
-4. If not authorized, redirects to home with error
+3. If authenticated, renders `<ToastProvider>` + `<AdminNav>` + page content
+4. If not authenticated, redirects to home with error
+
+**Note:** Email validation happens earlier in the `signIn` callback in `app/auth.ts` using the `ALLOWED_EMAIL` environment variable. The admin layout only needs to verify a session exists.
 
 **Benefits:**
 - Single auth check (no duplication)
+- Simple and clear authorization logic
 - Consistent error handling
 - Easy to update (one file)
 - Toast notifications available globally
@@ -728,18 +720,19 @@ Quick checklist:
 ## Troubleshooting
 
 ### "Unauthorized" redirect
-- Check `app/lib/permissions.ts` - is your email in `ADMIN_USERS`?
-- Ensure you're logged in with GitHub OAuth
-- Verify the email matches exactly
+- Check that `ALLOWED_EMAIL` environment variable is set correctly
+- Ensure you're logged in with GitHub or Google OAuth
+- Verify the email you're signing in with matches `ALLOWED_EMAIL` exactly (case-insensitive)
+- Visit `/debug-session` after signing in to see your session email
 
 ### Posts don't save
 - Check browser console for errors
 - Verify database connection (`POSTGRES_URL`)
 - Ensure tables are created (run migrations)
-- Check server action has proper auth
+- Ensure you're signed in (server actions check for session)
 
 ### Contact actions not working
-- Ensure user has proper role (viewer+ for status updates, admin for delete)
+- Ensure you're signed in (all actions require authentication)
 - Check toast notifications for error messages
 - Verify database permissions
 
@@ -754,9 +747,9 @@ Quick checklist:
 - Note: Requires Vercel Blob or S3 configuration in production
 - Current implementation stores metadata only
 
-### Settings page access denied
-- Only admin role can access settings
-- Check user role in permissions.ts
+### Settings page not loading
+- Ensure you're signed in
+- Check database connection for settings retrieval
 - Verify session is active
 
 ### Sidebar navigation not highlighting
@@ -840,10 +833,10 @@ Quick checklist:
 
 **The admin architecture is production-ready! 🎉**
 
-All routes are protected with granular permissions, navigation is unified, analytics track engagement, media management is functional, and settings are centralized. The system includes comprehensive error handling, user feedback, and performance optimizations.
+All routes are protected with authentication, navigation is unified, analytics track engagement, media management is functional, and settings are centralized. The system includes comprehensive error handling, user feedback, and performance optimizations.
 
 **Key Features:**
-- 🔒 Secure with role-based permissions
+- 🔒 Secure with email-based authentication
 - 📊 Analytics dashboard with charts
 - 📁 Media library with upload
 - ⚙️ Settings management
@@ -857,7 +850,7 @@ All routes are protected with granular permissions, navigation is unified, analy
 **Ready for:**
 - Production deployment (after running database migrations)
 - Adding new admin features (just create a page in `app/(admin)/`)
-- Scaling to multiple admin users with different roles
+- Extending to role-based permissions if needed (see `app/lib/permissions.ts`)
 - Tracking analytics and monitoring engagement
 
 **Next Steps:**

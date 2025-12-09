@@ -3,14 +3,13 @@
 import { revalidatePath } from 'next/cache';
 import { createMediaItem, deleteMediaItem, getMediaItemById } from '@/app/db/media';
 import { auth } from '@/app/auth';
-import { permissions } from '@/app/lib/permissions';
 import { uploadFileToS3, deleteFileFromS3, getImageDimensions } from '@/app/lib/s3';
 
 export async function uploadMediaAction(formData: FormData) {
-  // Security: Verify user has permission to upload media
+  // Security: Verify user is authenticated
   const session = await auth();
-  if (!session || !permissions.media.upload(session.user)) {
-    throw new Error('Unauthorized: You do not have permission to upload media');
+  if (!session?.user) {
+    throw new Error('Unauthorized: You must be signed in to upload media');
   }
 
   const file = formData.get('file') as File;
@@ -67,10 +66,10 @@ export async function uploadMediaAction(formData: FormData) {
 }
 
 export async function deleteMediaAction(id: number) {
-  // Security: Verify user is admin (only admins can delete media)
+  // Security: Verify user is authenticated
   const session = await auth();
-  if (!session || !permissions.media.delete(session.user)) {
-    throw new Error('Unauthorized: Only admins can delete media');
+  if (!session?.user) {
+    throw new Error('Unauthorized: You must be signed in to delete media');
   }
 
   try {

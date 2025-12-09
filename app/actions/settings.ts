@@ -3,13 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { updateSettings } from '@/app/db/settings';
 import { auth } from '@/app/auth';
-import { permissions } from '@/app/lib/permissions';
 
 export async function updateSettingsAction(formData: FormData) {
-  // Security: Verify user is admin (only admins can update settings)
+  // Security: Verify user is authenticated
   const session = await auth();
-  if (!session || !permissions.settings.edit(session.user)) {
-    throw new Error('Unauthorized: Only admins can update settings');
+  if (!session?.user) {
+    throw new Error('Unauthorized: You must be signed in to update settings');
   }
 
   try {
