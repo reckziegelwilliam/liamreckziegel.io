@@ -34,6 +34,10 @@ export const {
   trustHost: true,
   basePath: '/api/auth',
   secret: process.env.AUTH_SECRET,
+  pages: {
+    signIn: '/',
+    error: '/?error=unauthorized',
+  },
   cookies: {
     sessionToken: {
       name: `__Secure-next-auth.session-token`,
