@@ -12,7 +12,12 @@ export interface AdminUser {
 // To add more admins, simply add to this array
 const ADMIN_USERS: AdminUser[] = [
   { 
-    email: 'reckziegel.william@gmail.com', 
+    email: 'reckziegel.william96@gmail.com', 
+    role: 'admin',
+    name: 'Liam Reckziegel'
+  },
+  {
+    email: 'reckziegel.william@gmail.com',
     role: 'admin',
     name: 'Liam Reckziegel'
   },
