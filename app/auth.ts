@@ -16,12 +16,37 @@ export const {
           scope: 'read:user user:email',
         },
       },
-      profile(profile) {
+      async profile(profile, tokens) {
         console.log('GitHub profile received:', profile);
+        
+        // If email is not in profile, fetch it from the emails API
+        let email = profile.email;
+        
+        if (!email && tokens.access_token) {
+          try {
+            const emailsResponse = await fetch('https://api.github.com/user/emails', {
+              headers: {
+                Authorization: `Bearer ${tokens.access_token}`,
+              },
+            });
+            
+            if (emailsResponse.ok) {
+              const emails = await emailsResponse.json();
+              // Find the primary email or the first verified email
+              const primaryEmail = emails.find((e: any) => e.primary && e.verified);
+              const verifiedEmail = emails.find((e: any) => e.verified);
+              email = primaryEmail?.email || verifiedEmail?.email || emails[0]?.email;
+              console.log('Fetched email from API:', email);
+            }
+          } catch (error) {
+            console.error('Error fetching user emails:', error);
+          }
+        }
+        
         return {
           id: profile.id.toString(),
           name: profile.name || profile.login,
-          email: profile.email,
+          email: email,
           image: profile.avatar_url,
         };
       },
