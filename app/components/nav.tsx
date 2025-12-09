@@ -54,7 +54,7 @@ export async function Navbar() {
             </Link>
           ) : (
             <Link
-              href="/api/auth/signin"
+              href="/api/auth/signin?callbackUrl=/admin/dashboard"
               className="transition-all hover:text-neutral-800 dark:hover:text-neutral-200 flex align-middle relative py-1 px-2 text-xs opacity-30 hover:opacity-100"
               title="Admin Login"
             >
