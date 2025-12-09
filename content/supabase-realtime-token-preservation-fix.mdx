@@ -351,30 +351,23 @@ await client.setAuth() // Fetches from callback
   before={
     <>
       <p><strong>Had to call setAuth repeatedly:</strong></p>
-      <pre><code>await client.setAuth('token')
-const ch1 = client.channel('topic')
-await ch1.subscribe()
-
-await client.removeChannel(ch1)
-
-// ❌ Must call setAuth again
-await client.setAuth('token')
-const ch2 = client.channel('topic2')
-await ch2.subscribe()</code></pre>
+      <ul>
+        <li>Set auth token before first subscription</li>
+        <li>Remove channel when done</li>
+        <li>❌ Must call setAuth again before next subscription</li>
+        <li>Token was lost during channel operations</li>
+      </ul>
     </>
   }
   after={
     <>
       <p><strong>Set once, works everywhere:</strong></p>
-      <pre><code>await client.setAuth('token')
-const ch1 = client.channel('topic')
-await ch1.subscribe()
-
-await client.removeChannel(ch1)
-
-// ✅ Token preserved!
-const ch2 = client.channel('topic2')
-await ch2.subscribe()</code></pre>
+      <ul>
+        <li>Set auth token once at initialization</li>
+        <li>Remove and recreate channels freely</li>
+        <li>✅ Token automatically preserved</li>
+        <li>No need to call setAuth repeatedly</li>
+      </ul>
     </>
   }
 />
