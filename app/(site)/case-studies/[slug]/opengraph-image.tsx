@@ -43,7 +43,7 @@ export default async function Image(
 
   // Load the base image as ArrayBuffer
   const baseUrl = new URL(
-    "../../../public/liam_rex_banner.png",
+  "../../../../public/liam_rex_banner.png",
     import.meta.url,
   );
   const baseImageData = await fetch(baseUrl).then((res) => res.arrayBuffer());
