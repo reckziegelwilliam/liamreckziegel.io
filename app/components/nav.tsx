@@ -9,9 +9,6 @@ const navItems = {
   '/case-studies': {
     name: 'case studies',
   },
-  '/work': {
-    name: 'work',
-  },
   '/playbooks': {
     name: 'playbooks',
   },
